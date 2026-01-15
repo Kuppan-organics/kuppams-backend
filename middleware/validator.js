@@ -33,9 +33,7 @@ exports.loginValidator = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Please provide a valid email"),
-  body("password")
-    .notEmpty()
-    .withMessage("Password is required"),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
 
 exports.updateProfileValidator = [
@@ -54,21 +52,11 @@ exports.updateProfileValidator = [
     .trim()
     .isURL()
     .withMessage("Profile photo must be a valid URL"),
-  body("address.street")
-    .optional()
-    .trim(),
-  body("address.city")
-    .optional()
-    .trim(),
-  body("address.state")
-    .optional()
-    .trim(),
-  body("address.zipCode")
-    .optional()
-    .trim(),
-  body("address.country")
-    .optional()
-    .trim(),
+  body("address.street").optional().trim(),
+  body("address.city").optional().trim(),
+  body("address.state").optional().trim(),
+  body("address.zipCode").optional().trim(),
+  body("address.country").optional().trim(),
 ];
 
 exports.updateProfilePhotoValidator = [
@@ -111,10 +99,7 @@ exports.createProductValidator = [
     .optional()
     .isInt({ min: 0 })
     .withMessage("Stock must be a non-negative integer"),
-  body("images")
-    .optional()
-    .isArray()
-    .withMessage("Images must be an array"),
+  body("images").optional().isArray().withMessage("Images must be an array"),
   body("images.*")
     .optional()
     .isURL()
@@ -149,10 +134,7 @@ exports.updateProductValidator = [
     .optional()
     .isInt({ min: 0 })
     .withMessage("Stock must be a non-negative integer"),
-  body("images")
-    .optional()
-    .isArray()
-    .withMessage("Images must be an array"),
+  body("images").optional().isArray().withMessage("Images must be an array"),
   body("images.*")
     .optional()
     .isURL()
@@ -208,21 +190,29 @@ exports.cartItemIdValidator = [
 
 // Order validators
 exports.createOrderValidator = [
-  body("shippingAddress.street")
-    .optional()
-    .trim(),
-  body("shippingAddress.city")
-    .optional()
-    .trim(),
-  body("shippingAddress.state")
-    .optional()
-    .trim(),
-  body("shippingAddress.zipCode")
-    .optional()
-    .trim(),
-  body("shippingAddress.country")
-    .optional()
-    .trim(),
+  body("shippingAddress.street").optional().trim(),
+  body("shippingAddress.city").optional().trim(),
+  body("shippingAddress.state").optional().trim(),
+  body("shippingAddress.zipCode").optional().trim(),
+  body("shippingAddress.country").optional().trim(),
+];
+
+exports.buyNowValidator = [
+  body("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+  body("quantity")
+    .notEmpty()
+    .withMessage("Quantity is required")
+    .isInt({ min: 1 })
+    .withMessage("Quantity must be at least 1"),
+  body("shippingAddress.street").optional().trim(),
+  body("shippingAddress.city").optional().trim(),
+  body("shippingAddress.state").optional().trim(),
+  body("shippingAddress.zipCode").optional().trim(),
+  body("shippingAddress.country").optional().trim(),
 ];
 
 exports.orderIdValidator = [
@@ -241,8 +231,17 @@ exports.updateOrderStatusValidator = [
     .withMessage("Invalid order ID"),
   body("status")
     .optional()
-    .isIn(["placed", "accepted", "packing", "sent_to_delivery", "delivered", "cancelled"])
-    .withMessage("Invalid order status. Must be one of: placed, accepted, packing, sent_to_delivery, delivered, cancelled"),
+    .isIn([
+      "placed",
+      "accepted",
+      "packing",
+      "sent_to_delivery",
+      "delivered",
+      "cancelled",
+    ])
+    .withMessage(
+      "Invalid order status. Must be one of: placed, accepted, packing, sent_to_delivery, delivered, cancelled"
+    ),
   body("paymentStatus")
     .optional()
     .isIn(["pending", "paid", "failed"])

@@ -4,11 +4,13 @@ const {
   getOrders,
   getOrder,
   createOrder,
+  buyNow,
   updateOrderStatus,
 } = require("../controllers/orderController");
 const { protect, authorize } = require("../middleware/auth");
 const {
   createOrderValidator,
+  buyNowValidator,
   orderIdValidator,
   updateOrderStatusValidator,
   paginationValidator,
@@ -198,6 +200,67 @@ router.get("/:id", protect, orderIdValidator, getOrder);
  *         description: Not authorized
  */
 router.post("/", protect, createOrderValidator, createOrder);
+
+/**
+ * @swagger
+ * /api/orders/buy-now:
+ *   post:
+ *     summary: Buy now - Create order directly from product (without cart)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - productId
+ *               - quantity
+ *             properties:
+ *               productId:
+ *                 type: string
+ *                 description: Product ID to purchase
+ *               quantity:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Quantity to purchase
+ *               shippingAddress:
+ *                 type: object
+ *                 properties:
+ *                   street:
+ *                     type: string
+ *                   city:
+ *                     type: string
+ *                   state:
+ *                     type: string
+ *                   zipCode:
+ *                     type: string
+ *                   country:
+ *                     type: string
+ *     responses:
+ *       201:
+ *         description: Order created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 order:
+ *                   $ref: '#/components/schemas/Order'
+ *       400:
+ *         description: Invalid input or insufficient stock
+ *       401:
+ *         description: Not authorized
+ *       404:
+ *         description: Product not found
+ */
+router.post("/buy-now", protect, buyNowValidator, buyNow);
 
 /**
  * @swagger

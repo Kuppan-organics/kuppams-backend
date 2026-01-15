@@ -152,6 +152,82 @@ exports.createOrder = async (req, res, next) => {
   }
 };
 
+// @desc    Buy now - Create order directly from product (without cart)
+// @route   POST /api/orders/buy-now
+// @access  Private
+exports.buyNow = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { productId, quantity, shippingAddress } = req.body;
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product || !product.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found or not available",
+      });
+    }
+
+    // Check stock availability
+    if (product.stock < quantity) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient stock available. Available: ${product.stock}, Requested: ${quantity}`,
+      });
+    }
+
+    // Calculate total amount
+    const price = product.discountedPrice || product.price;
+    const totalAmount = price * quantity;
+
+    // Prepare order item
+    const orderItems = [{
+      product: product._id,
+      name: product.name,
+      quantity: quantity,
+      price: product.price,
+      discount: product.discount,
+    }];
+
+    // Create order with initial status "placed"
+    const order = await Order.create({
+      user: req.user.id,
+      items: orderItems,
+      totalAmount,
+      shippingAddress: shippingAddress || req.user.address,
+      status: "placed",
+      paymentStatus: "pending",
+      statusTimeline: [{
+        status: "placed",
+        timestamp: new Date(),
+        note: "Order placed successfully (Buy Now)",
+      }],
+    });
+
+    // Reduce product stock
+    product.stock -= quantity;
+    await product.save();
+
+    await order.populate("items.product");
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully",
+      order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update order status (Admin)
 // @route   PUT /api/orders/:id/status
 // @access  Private/Admin
