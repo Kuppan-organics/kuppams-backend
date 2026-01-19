@@ -26,7 +26,17 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error("Failed to start server:", error.message);
-    process.exit(1);
+    console.error(
+      "Server starting without DB connection. The middleware will attempt reconnection on first API call.",
+    );
+    // Don't exit - let server start and middleware handle DB reconnection
+    const server = app.listen(PORT, () => {
+      console.log(
+        `Server running in ${
+          process.env.NODE_ENV || "development"
+        } mode on port ${PORT} (without DB connection)`,
+      );
+    });
   }
 };
 

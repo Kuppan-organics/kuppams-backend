@@ -40,7 +40,9 @@ const connectDB = async () => {
   try {
     // Check if MONGODB_URI is provided
     if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI is not defined in environment variables");
+      const errorMsg = "MONGODB_URI is not defined in environment variables";
+      console.error("Error: " + errorMsg);
+      throw new Error(errorMsg);
     }
 
     // Check if already connected
@@ -62,14 +64,18 @@ const connectDB = async () => {
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 
-    // Handle connection events
-    mongoose.connection.on("error", (err) => {
-      console.error(`MongoDB connection error: ${err.message}`);
-    });
+    // Handle connection events (attach only once)
+    if (!mongoose.connection.listeners("error").length) {
+      mongoose.connection.on("error", (err) => {
+        console.error(`MongoDB connection error: ${err.message}`);
+      });
+    }
 
-    mongoose.connection.on("disconnected", () => {
-      console.log("MongoDB disconnected");
-    });
+    if (!mongoose.connection.listeners("disconnected").length) {
+      mongoose.connection.on("disconnected", () => {
+        console.log("MongoDB disconnected");
+      });
+    }
 
     // Graceful shutdown
     process.on("SIGINT", async () => {
@@ -79,11 +85,8 @@ const connectDB = async () => {
     });
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
-    console.error("Please check:");
-    console.error("1. MongoDB server is running");
-    console.error("2. MONGODB_URI is correct in your .env file");
-    console.error("3. Network connectivity to MongoDB server");
-    process.exit(1);
+    // Don't exit process - let the middleware handle reconnection attempts
+    throw error;
   }
 };
 
