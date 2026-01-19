@@ -5,17 +5,23 @@ const connectDB = async () => {
     // Check if MONGODB_URI is provided
     if (!process.env.MONGODB_URI) {
       console.error(
-        "Error: MONGODB_URI is not defined in environment variables"
+        "Error: MONGODB_URI is not defined in environment variables",
       );
       console.error(
-        "Please create a .env file with MONGODB_URI=your_connection_string"
+        "Please create a .env file with MONGODB_URI=your_connection_string",
       );
       process.exit(1);
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000, // Timeout after 10 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 10000,
+      retryWrites: true,
+      retryReads: true,
+      family: 4, // Use IPv4 for Vercel compatibility
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
