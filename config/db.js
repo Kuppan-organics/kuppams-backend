@@ -1,5 +1,17 @@
 const mongoose = require("mongoose");
 
+// Middleware to check if DB connection is active
+const checkDBConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "Database connection unavailable. Please try again later.",
+      readyState: mongoose.connection.readyState,
+    });
+  }
+  next();
+};
+
 const connectDB = async () => {
   try {
     // Check if MONGODB_URI is provided
@@ -51,4 +63,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+module.exports = { connectDB, checkDBConnection };

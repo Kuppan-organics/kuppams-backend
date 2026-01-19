@@ -5,6 +5,7 @@ const swaggerUi = require("swagger-ui-express");
 require("dotenv").config();
 
 const errorHandler = require("./middleware/errorHandler");
+const { checkDBConnection } = require("./config/db");
 
 // Import routes
 const authRoutes = require("./routes/authRoutes");
@@ -58,6 +59,9 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Database connection check middleware (applies to all API routes)
+app.use("/api", checkDBConnection);
 
 // Swagger JSON endpoint (for Orval)
 app.get("/api-docs.json", (req, res) => {
