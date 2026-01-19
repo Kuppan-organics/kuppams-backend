@@ -15,17 +15,17 @@ const checkDBConnection = (req, res, next) => {
 const connectDB = async () => {
   try {
     // Check if MONGODB_URI is provided
-    if (!process.env.MONGODB_URI) {
-      console.error(
-        "Error: MONGODB_URI is not defined in environment variables",
-      );
-      console.error(
-        "Please create a .env file with MONGODB_URI=your_connection_string",
-      );
-      process.exit(1);
-    }
+    // if (!process.env.MONGODB_URI) {
+    //   console.error(
+    //     "Error: MONGODB_URI is not defined in environment variables",
+    //   );
+    //   console.error(
+    //     "Please create a .env file with MONGODB_URI=your_connection_string",
+    //   );
+    //   process.exit(1);
+    // }
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect("mongodb+srv://pavanganesh:pavanganesh@cluster0.axrs7n2.mongodb.net/kuppams_organic?appName=Cluster0", {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
