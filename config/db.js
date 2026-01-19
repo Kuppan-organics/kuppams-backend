@@ -1,31 +1,55 @@
 const mongoose = require("mongoose");
 
 // Middleware to check if DB connection is active
-const checkDBConnection = (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
+const checkDBConnection = async (req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
+  // If connection is not active, try to reconnect
+  if (
+    mongoose.connection.readyState === 0 ||
+    mongoose.connection.readyState === 2
+  ) {
+    console.warn(
+      `Database connection state: ${mongoose.connection.readyState}. Attempting to reconnect...`,
+    );
+
+    try {
+      await connectDB();
+      console.log("Database reconnected successfully");
+      next();
+    } catch (err) {
+      console.error("Failed to reconnect to database:", err.message);
+      return res.status(503).json({
+        success: false,
+        message: "Database connection unavailable. Please try again later.",
+        readyState: mongoose.connection.readyState,
+      });
+    }
+  } else {
     return res.status(503).json({
       success: false,
       message: "Database connection unavailable. Please try again later.",
       readyState: mongoose.connection.readyState,
     });
   }
-  next();
 };
 
 const connectDB = async () => {
   try {
     // Check if MONGODB_URI is provided
-    // if (!process.env.MONGODB_URI) {
-    //   console.error(
-    //     "Error: MONGODB_URI is not defined in environment variables",
-    //   );
-    //   console.error(
-    //     "Please create a .env file with MONGODB_URI=your_connection_string",
-    //   );
-    //   process.exit(1);
-    // }
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is not defined in environment variables");
+    }
 
-    const conn = await mongoose.connect("mongodb+srv://pavanganesh:pavanganesh@cluster0.axrs7n2.mongodb.net/kuppams_organic?appName=Cluster0", {
+    // Check if already connected
+    if (mongoose.connection.readyState === 1) {
+      console.log("Already connected to MongoDB");
+      return;
+    }
+
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
