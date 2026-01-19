@@ -45,6 +45,11 @@ const connectDB = async () => {
       throw new Error(errorMsg);
     }
 
+    console.log("Attempting to connect to MongoDB...");
+    console.log(
+      `Connection string (masked): mongodb+srv://${process.env.MONGODB_URI.split("@")[1]}`,
+    );
+
     // Check if already connected
     if (mongoose.connection.readyState === 1) {
       console.log("Already connected to MongoDB");
@@ -52,14 +57,16 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 5,
-      maxIdleTimeMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 60000,
+      maxPoolSize: 5,
+      minPoolSize: 1,
+      maxIdleTimeMS: 30000,
+      waitQueueTimeoutMS: 10000,
       retryWrites: true,
       retryReads: true,
       family: 4, // Use IPv4 for Vercel compatibility
+      connectTimeoutMS: 10000,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
