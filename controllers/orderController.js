@@ -2,6 +2,7 @@ const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const { validationResult } = require("express-validator");
+const { emitNewOrder, emitOrderStatusUpdate } = require("../utils/socketService");
 
 // @desc    Get user's orders
 // @route   GET /api/orders
@@ -142,6 +143,10 @@ exports.createOrder = async (req, res, next) => {
     await cart.save();
 
     await order.populate("items.product");
+    await order.populate("user", "name email");
+
+    // Emit socket event to notify admins of new order
+    emitNewOrder(order);
 
     res.status(201).json({
       success: true,
@@ -217,6 +222,10 @@ exports.buyNow = async (req, res, next) => {
     await product.save();
 
     await order.populate("items.product");
+    await order.populate("user", "name email");
+
+    // Emit socket event to notify admins of new order
+    emitNewOrder(order);
 
     res.status(201).json({
       success: true,
@@ -323,6 +332,9 @@ exports.updateOrderStatus = async (req, res, next) => {
     await order.save();
     await order.populate("items.product");
     await order.populate("user", "name email");
+
+    // Emit socket event to notify admins of order status update
+    emitOrderStatusUpdate(order);
 
     res.json({
       success: true,
