@@ -195,6 +195,11 @@ exports.createOrderValidator = [
   body("shippingAddress.state").optional().trim(),
   body("shippingAddress.zipCode").optional().trim(),
   body("shippingAddress.country").optional().trim(),
+  body("couponCode")
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 20 })
+    .withMessage("Coupon code must be between 3 and 20 characters"),
 ];
 
 exports.buyNowValidator = [
@@ -213,6 +218,11 @@ exports.buyNowValidator = [
   body("shippingAddress.state").optional().trim(),
   body("shippingAddress.zipCode").optional().trim(),
   body("shippingAddress.country").optional().trim(),
+  body("couponCode")
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 20 })
+    .withMessage("Coupon code must be between 3 and 20 characters"),
 ];
 
 exports.orderIdValidator = [
@@ -255,6 +265,100 @@ exports.updateOrderStatusValidator = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Note must be less than 500 characters"),
+];
+
+// Coupon validators
+exports.createCouponValidator = [
+  body("code")
+    .trim()
+    .notEmpty()
+    .withMessage("Coupon code is required")
+    .isLength({ min: 3, max: 20 })
+    .withMessage("Coupon code must be between 3 and 20 characters")
+    .matches(/^[A-Z0-9]+$/)
+    .withMessage("Coupon code must contain only uppercase letters and numbers"),
+  body("discountPercentage")
+    .notEmpty()
+    .withMessage("Discount percentage is required")
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Discount percentage must be between 0 and 100"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description cannot exceed 500 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+  body("expiryDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Expiry date must be a valid ISO 8601 date"),
+  body("usageLimit")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Usage limit must be a positive integer"),
+  body("minPurchaseAmount")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Minimum purchase amount must be a non-negative number"),
+];
+
+exports.updateCouponValidator = [
+  body("code")
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 20 })
+    .withMessage("Coupon code must be between 3 and 20 characters")
+    .matches(/^[A-Z0-9]+$/)
+    .withMessage("Coupon code must contain only uppercase letters and numbers"),
+  body("discountPercentage")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Discount percentage must be between 0 and 100"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description cannot exceed 500 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+  body("expiryDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Expiry date must be a valid ISO 8601 date"),
+  body("usageLimit")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Usage limit must be a positive integer"),
+  body("minPurchaseAmount")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Minimum purchase amount must be a non-negative number"),
+];
+
+exports.couponIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Coupon ID is required")
+    .isMongoId()
+    .withMessage("Invalid coupon ID"),
+];
+
+exports.validateCouponValidator = [
+  body("code")
+    .trim()
+    .notEmpty()
+    .withMessage("Coupon code is required")
+    .isLength({ min: 3, max: 20 })
+    .withMessage("Coupon code must be between 3 and 20 characters"),
+  body("cartTotal")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Cart total must be a non-negative number"),
 ];
 
 // Query validators

@@ -1,6 +1,7 @@
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const Coupon = require("../models/Coupon");
 const { validationResult } = require("express-validator");
 const { emitNewOrder, emitOrderStatusUpdate } = require("../utils/socketService");
 
@@ -69,7 +70,7 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
-    const { shippingAddress } = req.body;
+    const { shippingAddress, couponCode } = req.body;
 
     // Get user's cart
     const cart = await Cart.findOne({ user: req.user.id })
@@ -123,18 +124,77 @@ exports.createOrder = async (req, res, next) => {
       await product.save();
     }
 
+    // Apply coupon discount if provided
+    let couponDiscount = 0;
+    let discountAmount = 0;
+    let finalAmount = totalAmount;
+    let coupon = null;
+
+    if (couponCode) {
+      coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+
+      if (!coupon) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid coupon code",
+        });
+      }
+
+      // Validate coupon
+      if (!coupon.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon is not active",
+        });
+      }
+
+      if (coupon.expiryDate && new Date() > coupon.expiryDate) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon has expired",
+        });
+      }
+
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon has reached its usage limit",
+        });
+      }
+
+      if (coupon.minPurchaseAmount && totalAmount < coupon.minPurchaseAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Minimum purchase amount of ₹${coupon.minPurchaseAmount} is required to use this coupon`,
+        });
+      }
+
+      // Calculate discount
+      couponDiscount = coupon.discountPercentage;
+      discountAmount = (totalAmount * couponDiscount) / 100;
+      finalAmount = totalAmount - discountAmount;
+
+      // Increment coupon usage
+      coupon.usedCount += 1;
+      await coupon.save();
+    }
+
     // Create order with initial status "placed"
     const order = await Order.create({
       user: req.user.id,
       items: orderItems,
       totalAmount,
+      couponCode: couponCode ? couponCode.toUpperCase() : null,
+      couponDiscount,
+      discountAmount,
+      finalAmount,
       shippingAddress: shippingAddress || req.user.address,
       status: "placed",
       paymentStatus: "pending",
       statusTimeline: [{
         status: "placed",
         timestamp: new Date(),
-        note: "Order placed successfully",
+        note: couponCode ? `Order placed successfully with coupon ${couponCode.toUpperCase()}` : "Order placed successfully",
       }],
     });
 
@@ -170,7 +230,7 @@ exports.buyNow = async (req, res, next) => {
       });
     }
 
-    const { productId, quantity, shippingAddress } = req.body;
+    const { productId, quantity, shippingAddress, couponCode } = req.body;
 
     // Check if product exists
     const product = await Product.findById(productId);
@@ -191,7 +251,62 @@ exports.buyNow = async (req, res, next) => {
 
     // Calculate total amount
     const price = product.discountedPrice || product.price;
-    const totalAmount = price * quantity;
+    let totalAmount = price * quantity;
+
+    // Apply coupon discount if provided
+    let couponDiscount = 0;
+    let discountAmount = 0;
+    let finalAmount = totalAmount;
+    let coupon = null;
+
+    if (couponCode) {
+      coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+
+      if (!coupon) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid coupon code",
+        });
+      }
+
+      // Validate coupon
+      if (!coupon.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon is not active",
+        });
+      }
+
+      if (coupon.expiryDate && new Date() > coupon.expiryDate) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon has expired",
+        });
+      }
+
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+        return res.status(400).json({
+          success: false,
+          message: "This coupon has reached its usage limit",
+        });
+      }
+
+      if (coupon.minPurchaseAmount && totalAmount < coupon.minPurchaseAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Minimum purchase amount of ₹${coupon.minPurchaseAmount} is required to use this coupon`,
+        });
+      }
+
+      // Calculate discount
+      couponDiscount = coupon.discountPercentage;
+      discountAmount = (totalAmount * couponDiscount) / 100;
+      finalAmount = totalAmount - discountAmount;
+
+      // Increment coupon usage
+      coupon.usedCount += 1;
+      await coupon.save();
+    }
 
     // Prepare order item
     const orderItems = [{
@@ -207,13 +322,17 @@ exports.buyNow = async (req, res, next) => {
       user: req.user.id,
       items: orderItems,
       totalAmount,
+      couponCode: couponCode ? couponCode.toUpperCase() : null,
+      couponDiscount,
+      discountAmount,
+      finalAmount,
       shippingAddress: shippingAddress || req.user.address,
       status: "placed",
       paymentStatus: "pending",
       statusTimeline: [{
         status: "placed",
         timestamp: new Date(),
-        note: "Order placed successfully (Buy Now)",
+        note: couponCode ? `Order placed successfully (Buy Now) with coupon ${couponCode.toUpperCase()}` : "Order placed successfully (Buy Now)",
       }],
     });
 
@@ -264,7 +383,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     const previousStatus = order.status;
 
     if (status && status !== previousStatus) {
-      // If order is being cancelled, restore stock
+      // If order is being cancelled, restore stock and coupon usage
       if (status === "cancelled" && previousStatus !== "cancelled" && previousStatus !== "delivered") {
         await order.populate("items.product");
         
@@ -276,9 +395,18 @@ exports.updateOrderStatus = async (req, res, next) => {
             await product.save();
           }
         }
+
+        // Restore coupon usage if coupon was used
+        if (order.couponCode) {
+          const coupon = await Coupon.findOne({ code: order.couponCode });
+          if (coupon && coupon.usedCount > 0) {
+            coupon.usedCount -= 1;
+            await coupon.save();
+          }
+        }
       }
       
-      // If order was cancelled and is now being reactivated, reduce stock again
+      // If order was cancelled and is now being reactivated, reduce stock again and increment coupon usage
       if (previousStatus === "cancelled" && status !== "cancelled") {
         await order.populate("items.product");
         
@@ -295,6 +423,20 @@ exports.updateOrderStatus = async (req, res, next) => {
             // Reduce stock again
             product.stock -= item.quantity;
             await product.save();
+          }
+        }
+
+        // Increment coupon usage again if coupon was used
+        if (order.couponCode) {
+          const coupon = await Coupon.findOne({ code: order.couponCode });
+          if (coupon) {
+            // Validate coupon is still valid before incrementing
+            if (coupon.isActive && 
+                (!coupon.expiryDate || new Date() <= coupon.expiryDate) &&
+                (!coupon.usageLimit || coupon.usedCount < coupon.usageLimit)) {
+              coupon.usedCount += 1;
+              await coupon.save();
+            }
           }
         }
       }

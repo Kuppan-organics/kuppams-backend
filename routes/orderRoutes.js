@@ -46,6 +46,18 @@ const {
  *             $ref: '#/components/schemas/OrderItem'
  *         totalAmount:
  *           type: number
+ *         couponCode:
+ *           type: string
+ *           description: Coupon code applied to the order
+ *         couponDiscount:
+ *           type: number
+ *           description: Discount percentage from coupon
+ *         discountAmount:
+ *           type: number
+ *           description: Discount amount in currency
+ *         finalAmount:
+ *           type: number
+ *           description: Final amount after coupon discount
  *         shippingAddress:
  *           type: object
  *           properties:
@@ -182,6 +194,9 @@ router.get("/:id", protect, orderIdValidator, getOrder);
  *                     type: string
  *                   country:
  *                     type: string
+ *               couponCode:
+ *                 type: string
+ *                 description: Optional coupon code to apply
  *     responses:
  *       201:
  *         description: Order created successfully
@@ -239,6 +254,9 @@ router.post("/", protect, createOrderValidator, createOrder);
  *                     type: string
  *                   country:
  *                     type: string
+ *               couponCode:
+ *                 type: string
+ *                 description: Optional coupon code to apply
  *     responses:
  *       201:
  *         description: Order created successfully
@@ -254,7 +272,7 @@ router.post("/", protect, createOrderValidator, createOrder);
  *                 order:
  *                   $ref: '#/components/schemas/Order'
  *       400:
- *         description: Invalid input or insufficient stock
+ *         description: Invalid input, insufficient stock, or invalid coupon
  *       401:
  *         description: Not authorized
  *       404:
