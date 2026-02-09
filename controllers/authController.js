@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
+const { sendRegistrationEmail } = require("../utils/emailService");
 const { validationResult } = require("express-validator");
 
 // @desc    Register user
@@ -33,6 +34,11 @@ exports.register = async (req, res, next) => {
       password,
       phone,
     });
+
+    // Send welcome email (non-blocking)
+    sendRegistrationEmail({ name: user.name, email: user.email }).catch((err) =>
+      console.error("[Auth] Registration email failed:", err.message)
+    );
 
     const token = generateToken(user._id);
 

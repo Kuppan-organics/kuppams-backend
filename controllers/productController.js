@@ -89,6 +89,8 @@ exports.createProduct = async (req, res, next) => {
       images,
       stock,
       quantity,
+      framingMethods,
+      nutritionalBenefits,
     } = req.body;
 
     const product = await Product.create({
@@ -100,6 +102,8 @@ exports.createProduct = async (req, res, next) => {
       images: images || [],
       stock: stock || 0,
       quantity: quantity || "",
+      framingMethods: framingMethods || [],
+      nutritionalBenefits: nutritionalBenefits || [],
     });
 
     res.status(201).json({

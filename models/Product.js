@@ -44,6 +44,18 @@ const productSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    framingMethods: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    nutritionalBenefits: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,
@@ -53,6 +65,12 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Validate at least 3 nutritional benefits when provided
+productSchema.path("nutritionalBenefits").validate(function (value) {
+  if (!value || value.length === 0) return true; // optional field
+  return value.length >= 3;
+}, "Nutritional benefits must contain at least 3 values");
 
 // Virtual for discounted price
 productSchema.virtual("discountedPrice").get(function () {

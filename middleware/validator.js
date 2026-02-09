@@ -104,6 +104,24 @@ exports.createProductValidator = [
     .optional()
     .isURL()
     .withMessage("Each image must be a valid URL"),
+  body("framingMethods")
+    .optional()
+    .isArray()
+    .withMessage("Framing methods must be an array"),
+  body("framingMethods.*")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Each framing method must be a non-empty string"),
+  body("nutritionalBenefits")
+    .optional()
+    .isArray({ min: 3 })
+    .withMessage("Nutritional benefits must be an array with at least 3 values"),
+  body("nutritionalBenefits.*")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Each nutritional benefit must be a non-empty string"),
 ];
 
 exports.updateProductValidator = [
@@ -139,6 +157,24 @@ exports.updateProductValidator = [
     .optional()
     .isURL()
     .withMessage("Each image must be a valid URL"),
+  body("framingMethods")
+    .optional()
+    .isArray()
+    .withMessage("Framing methods must be an array"),
+  body("framingMethods.*")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Each framing method must be a non-empty string"),
+  body("nutritionalBenefits")
+    .optional()
+    .isArray({ min: 3 })
+    .withMessage("Nutritional benefits must be an array with at least 3 values"),
+  body("nutritionalBenefits.*")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Each nutritional benefit must be a non-empty string"),
   body("isActive")
     .optional()
     .isBoolean()
@@ -359,6 +395,46 @@ exports.validateCouponValidator = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Cart total must be a non-negative number"),
+];
+
+// Review validators
+exports.createReviewValidator = [
+  body("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+  body("comment")
+    .trim()
+    .notEmpty()
+    .withMessage("Review comment is required")
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Review must be between 1 and 200 characters"),
+];
+
+exports.updateReviewValidator = [
+  body("comment")
+    .trim()
+    .notEmpty()
+    .withMessage("Review comment is required")
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Review must be between 1 and 200 characters"),
+];
+
+exports.reviewIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Review ID is required")
+    .isMongoId()
+    .withMessage("Invalid review ID"),
+];
+
+exports.productIdParamValidator = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .isMongoId()
+    .withMessage("Invalid product ID"),
 ];
 
 // Query validators

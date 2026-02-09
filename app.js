@@ -14,6 +14,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const couponRoutes = require("./routes/couponRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 const app = express();
 
@@ -22,7 +23,7 @@ const swaggerOptions = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Kuppams Organic E-commerce API",
+      title: "Kuppam Organics E-commerce API",
       version: "1.0.0",
       description:
         "A comprehensive REST API for an organic products e-commerce platform",
@@ -77,7 +78,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "Kuppams Organic E-commerce API is running",
+    message: "Kuppam Organics E-commerce API is running",
     documentation: "/api-docs",
   });
 });
@@ -88,6 +89,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/coupons", couponRoutes);
+app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Error handler middleware (must be last)

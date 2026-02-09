@@ -1,4 +1,4 @@
-# Kuppams Organic E-commerce Backend
+# Kuppam Organics E-commerce Backend
 
 A comprehensive Node.js/Express/MongoDB backend for an organic products e-commerce platform.
 
@@ -8,6 +8,7 @@ A comprehensive Node.js/Express/MongoDB backend for an organic products e-commer
 - **Products**: Full CRUD operations with categories, pricing, and discounts
 - **Cart**: Shopping cart management
 - **Orders**: Order creation and management
+- **Email**: Registration welcome, order confirmation (with details & pricing), and order status updates (accepted, out for delivery, delivered)
 - **Admin Panel**: Admin-only product management
 - **API Documentation**: Swagger/OpenAPI documentation for Orval integration
 
@@ -33,7 +34,12 @@ cp .env.example .env
 
 3. Update the `.env` file with your MongoDB connection string and JWT secret.
 
-4. Run the server:
+4. (Optional) To send emails (registration welcome, order confirmation, order status), set SMTP in `.env`:
+   - `SMTP_HOST`, `SMTP_PORT` (e.g. 587), `SMTP_USER`, `SMTP_PASS`
+   - `EMAIL_FROM` (e.g. `"Kuppam Organics" <noreply@yourdomain.com>`)
+   - If SMTP is not set, emails are logged but not sent.
+
+5. Run the server:
 ```bash
 npm run dev
 ```

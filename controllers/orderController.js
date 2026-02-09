@@ -4,6 +4,7 @@ const Product = require("../models/Product");
 const Coupon = require("../models/Coupon");
 const { validationResult } = require("express-validator");
 const { emitNewOrder, emitOrderStatusUpdate } = require("../utils/socketService");
+const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
 
 // @desc    Get user's orders
 // @route   GET /api/orders
@@ -208,6 +209,11 @@ exports.createOrder = async (req, res, next) => {
     // Emit socket event to notify admins of new order
     emitNewOrder(order);
 
+    // Send order confirmation email with details and pricing (non-blocking)
+    sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
+      console.error("[Order] Confirmation email failed:", err.message)
+    );
+
     res.status(201).json({
       success: true,
       order
@@ -346,6 +352,11 @@ exports.buyNow = async (req, res, next) => {
     // Emit socket event to notify admins of new order
     emitNewOrder(order);
 
+    // Send order confirmation email with details and pricing (non-blocking)
+    sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
+      console.error("[Order] Confirmation email failed (buy-now):", err.message)
+    );
+
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
@@ -477,6 +488,18 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     // Emit socket event to notify admins of order status update
     emitOrderStatusUpdate(order);
+
+    // Send status update email for: accepted, sent_to_delivery, delivered (non-blocking)
+    if (status && status !== previousStatus) {
+      sendOrderStatusEmail({
+        user: order.user,
+        order,
+        newStatus: status,
+        note,
+      }).catch((err) =>
+        console.error("[Order] Status email failed:", err.message)
+      );
+    }
 
     res.json({
       success: true,
