@@ -59,6 +59,19 @@ const {
  *           type: number
  *           default: 0
  *           description: Available stock
+ *         quantity:
+ *           type: string
+ *           description: Quantity descriptor (e.g., '1kg', '500g')
+ *         framingMethods:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array of farming/framing methods
+ *         nutritionalBenefits:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array of nutritional benefits (min 3 if provided)
  *         isActive:
  *           type: boolean
  *           default: true
@@ -210,6 +223,16 @@ router.get("/:id", productIdValidator, getProduct);
  *                   type: string
  *               stock:
  *                 type: number
+ *               quantity:
+ *                 type: string
+ *               framingMethods:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               nutritionalBenefits:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -264,6 +287,16 @@ router.post(
  *                   type: string
  *               stock:
  *                 type: number
+ *               quantity:
+ *                 type: string
+ *               framingMethods:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               nutritionalBenefits:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *               isActive:
  *                 type: boolean
  *     responses:
