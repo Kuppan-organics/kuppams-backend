@@ -19,6 +19,7 @@ exports.getProducts = async (req, res, next) => {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -31,13 +32,25 @@ exports.getProducts = async (req, res, next) => {
 
     const total = await Product.countDocuments(query);
 
+    const formattedProducts = products.map((product) => ({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      discount: product.discount,
+      images: product.images,
+      quantity: product.quantity,
+      isActive: product.isActive,
+      discountedPrice: product.discountedPrice,
+      id: product._id,
+    }));
+
     res.json({
       success: true,
       count: products.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
-      products,
+      products: formattedProducts,
     });
   } catch (error) {
     next(error);
