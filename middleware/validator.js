@@ -122,6 +122,27 @@ exports.createProductValidator = [
     .trim()
     .notEmpty()
     .withMessage("Each nutritional benefit must be a non-empty string"),
+  body("variants")
+    .optional()
+    .isArray()
+    .withMessage("Variants must be an array"),
+  body("variants.*.quantity")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Variant quantity label is required"),
+  body("variants.*.price")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Variant price must be a positive number"),
+  body("variants.*.discount")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Variant discount must be between 0 and 100"),
+  body("variants.*.stock")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Variant stock must be a non-negative integer"),
 ];
 
 exports.updateProductValidator = [
@@ -179,6 +200,27 @@ exports.updateProductValidator = [
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
+  body("variants")
+    .optional()
+    .isArray()
+    .withMessage("Variants must be an array"),
+  body("variants.*.quantity")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Variant quantity label is required"),
+  body("variants.*.price")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Variant price must be a positive number"),
+  body("variants.*.discount")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Variant discount must be between 0 and 100"),
+  body("variants.*.stock")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Variant stock must be a non-negative integer"),
 ];
 
 exports.productIdValidator = [

@@ -39,6 +39,7 @@ exports.getProducts = async (req, res, next) => {
       discount: product.discount,
       images: product.images,
       quantity: product.quantity,
+      variants: product.variants,
       isActive: product.isActive,
       discountedPrice: product.discountedPrice,
       id: product._id,
@@ -104,6 +105,7 @@ exports.createProduct = async (req, res, next) => {
       quantity,
       framingMethods,
       nutritionalBenefits,
+      variants,
     } = req.body;
 
     const product = await Product.create({
@@ -117,6 +119,7 @@ exports.createProduct = async (req, res, next) => {
       quantity: quantity || "",
       framingMethods: framingMethods || [],
       nutritionalBenefits: nutritionalBenefits || [],
+      variants: variants || [],
     });
 
     res.status(201).json({

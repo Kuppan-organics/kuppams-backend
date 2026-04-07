@@ -44,6 +44,31 @@ const productSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    variants: [
+      {
+        quantity: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: [0, "Variant price must be positive"],
+        },
+        discount: {
+          type: Number,
+          default: 0,
+          min: [0, "Variant discount cannot be negative"],
+          max: [100, "Variant discount cannot exceed 100%"],
+        },
+        stock: {
+          type: Number,
+          default: 0,
+          min: [0, "Variant stock cannot be negative"],
+        },
+      },
+    ],
     framingMethods: [
       {
         type: String,
