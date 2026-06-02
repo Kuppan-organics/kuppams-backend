@@ -15,6 +15,7 @@ const {
   productIdValidator,
   paginationValidator,
 } = require("../middleware/validator");
+const { upload } = require("../config/cloudinary");
 
 /**
  * @swagger
@@ -198,7 +199,7 @@ router.get("/:id", productIdValidator, getProduct);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -221,18 +222,21 @@ router.get("/:id", productIdValidator, getProduct);
  *                 type: array
  *                 items:
  *                   type: string
+ *                   format: binary
+ *                 description: Product images (jpg, jpeg, png, webp, gif)
  *               stock:
  *                 type: number
  *               quantity:
  *                 type: string
  *               framingMethods:
- *                 type: array
- *                 items:
- *                   type: string
+ *                 type: string
+ *                 description: JSON string array of farming methods
  *               nutritionalBenefits:
- *                 type: array
- *                 items:
- *                   type: string
+ *                 type: string
+ *                 description: JSON string array of nutritional benefits
+ *               variants:
+ *                 type: string
+ *                 description: JSON string array of product variants
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -245,6 +249,7 @@ router.post(
   "/",
   protect,
   authorize("admin"),
+  upload.array("images", 10),
   createProductValidator,
   createProduct
 );
@@ -267,7 +272,7 @@ router.post(
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -285,18 +290,25 @@ router.post(
  *                 type: array
  *                 items:
  *                   type: string
+ *                   format: binary
+ *                 description: New product images to add/replace
+ *               deleteOldImages:
+ *                 type: string
+ *                 enum: ['true', 'false']
+ *                 description: Set to 'true' to replace all images, 'false' to append
  *               stock:
  *                 type: number
  *               quantity:
  *                 type: string
  *               framingMethods:
- *                 type: array
- *                 items:
- *                   type: string
+ *                 type: string
+ *                 description: JSON string array of farming methods
  *               nutritionalBenefits:
- *                 type: array
- *                 items:
- *                   type: string
+ *                 type: string
+ *                 description: JSON string array of nutritional benefits
+ *               variants:
+ *                 type: string
+ *                 description: JSON string array of product variants
  *               isActive:
  *                 type: boolean
  *     responses:
@@ -314,6 +326,7 @@ router.put(
   protect,
   authorize("admin"),
   productIdValidator,
+  upload.array("images", 10),
   updateProductValidator,
   updateProduct
 );

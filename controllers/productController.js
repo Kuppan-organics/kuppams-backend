@@ -1,5 +1,6 @@
 const Product = require("../models/Product");
 const { validationResult } = require("express-validator");
+const { deleteImage } = require("../config/cloudinary");
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -100,7 +101,6 @@ exports.createProduct = async (req, res, next) => {
       category,
       price,
       discount,
-      images,
       stock,
       quantity,
       framingMethods,
@@ -108,18 +108,40 @@ exports.createProduct = async (req, res, next) => {
       variants,
     } = req.body;
 
+    // Extract image URLs from uploaded files
+    const images = req.files ? req.files.map((file) => file.path) : [];
+
+    // Parse JSON fields if they come as strings
+    const parsedFramingMethods = framingMethods
+      ? typeof framingMethods === "string"
+        ? JSON.parse(framingMethods)
+        : framingMethods
+      : [];
+
+    const parsedNutritionalBenefits = nutritionalBenefits
+      ? typeof nutritionalBenefits === "string"
+        ? JSON.parse(nutritionalBenefits)
+        : nutritionalBenefits
+      : [];
+
+    const parsedVariants = variants
+      ? typeof variants === "string"
+        ? JSON.parse(variants)
+        : variants
+      : [];
+
     const product = await Product.create({
       name,
       description,
       category,
       price,
       discount: discount || 0,
-      images: images || [],
+      images,
       stock: stock || 0,
       quantity: quantity || "",
-      framingMethods: framingMethods || [],
-      nutritionalBenefits: nutritionalBenefits || [],
-      variants: variants || [],
+      framingMethods: parsedFramingMethods,
+      nutritionalBenefits: parsedNutritionalBenefits,
+      variants: parsedVariants,
     });
 
     res.status(201).json({
@@ -153,7 +175,39 @@ exports.updateProduct = async (req, res, next) => {
       });
     }
 
-    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    // Prepare update data
+    const updateData = { ...req.body };
+
+    // Handle new image uploads
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map((file) => file.path);
+
+      // Delete old images from Cloudinary if requested
+      if (req.body.deleteOldImages === "true" && product.images.length > 0) {
+        for (const imageUrl of product.images) {
+          await deleteImage(imageUrl);
+        }
+        updateData.images = newImages;
+      } else {
+        // Append new images to existing ones
+        updateData.images = [...product.images, ...newImages];
+      }
+    }
+
+    // Parse JSON fields if they come as strings
+    if (updateData.framingMethods && typeof updateData.framingMethods === "string") {
+      updateData.framingMethods = JSON.parse(updateData.framingMethods);
+    }
+
+    if (updateData.nutritionalBenefits && typeof updateData.nutritionalBenefits === "string") {
+      updateData.nutritionalBenefits = JSON.parse(updateData.nutritionalBenefits);
+    }
+
+    if (updateData.variants && typeof updateData.variants === "string") {
+      updateData.variants = JSON.parse(updateData.variants);
+    }
+
+    product = await Product.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });
