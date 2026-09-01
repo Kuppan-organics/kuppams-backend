@@ -1,6 +1,8 @@
 const Product = require("../models/Product");
+const Review = require("../models/Review");
+const Cart = require("../models/Cart");
 const { validationResult } = require("express-validator");
-const { deleteImage } = require("../config/cloudinary");
+const { deleteImage, deleteImages } = require("../config/cloudinary");
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -235,9 +237,21 @@ exports.deleteProduct = async (req, res, next) => {
       });
     }
 
-    // Soft delete by setting isActive to false
-    product.isActive = false;
-    await product.save();
+    // Delete all product images from Cloudinary
+    if (product.images?.length > 0) {
+      await deleteImages(product.images);
+    }
+
+    // Delete all reviews/comments for this product
+    await Review.deleteMany({ product: product._id });
+
+    // Remove product from user carts
+    await Cart.updateMany(
+      { "items.product": product._id },
+      { $pull: { items: { product: product._id } } }
+    );
+
+    await product.deleteOne();
 
     res.json({
       success: true,

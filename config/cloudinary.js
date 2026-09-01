@@ -37,13 +37,23 @@ const upload = multer({
   },
 });
 
-// Helper function to delete images from Cloudinary
+// Helper function to extract public_id from a Cloudinary URL
+const getPublicIdFromUrl = (imageUrl) => {
+  const folderIndex = imageUrl.indexOf("kuppam-products/");
+  if (folderIndex === -1) return null;
+
+  const pathWithExt = imageUrl.substring(folderIndex).split("?")[0];
+  return pathWithExt.replace(/\.[^/.]+$/, "");
+};
+
+// Helper function to delete a single image from Cloudinary
 const deleteImage = async (imageUrl) => {
   try {
-    // Extract public_id from Cloudinary URL
-    const parts = imageUrl.split("/");
-    const filename = parts[parts.length - 1];
-    const publicId = `kuppam-products/${filename.split(".")[0]}`;
+    const publicId = getPublicIdFromUrl(imageUrl);
+    if (!publicId) {
+      console.error("Could not extract public_id from URL:", imageUrl);
+      return false;
+    }
 
     await cloudinary.uploader.destroy(publicId);
     return true;
@@ -53,8 +63,16 @@ const deleteImage = async (imageUrl) => {
   }
 };
 
+// Helper function to delete multiple images from Cloudinary
+const deleteImages = async (imageUrls = []) => {
+  if (!imageUrls.length) return;
+
+  await Promise.all(imageUrls.map((imageUrl) => deleteImage(imageUrl)));
+};
+
 module.exports = {
   cloudinary,
   upload,
   deleteImage,
+  deleteImages,
 };

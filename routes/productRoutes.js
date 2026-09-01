@@ -16,6 +16,7 @@ const {
   paginationValidator,
 } = require("../middleware/validator");
 const { upload } = require("../config/cloudinary");
+const parseMultipartJson = require("../middleware/parseMultipartJson");
 
 /**
  * @swagger
@@ -250,6 +251,7 @@ router.post(
   protect,
   authorize("admin"),
   upload.array("images", 10),
+  parseMultipartJson,
   createProductValidator,
   createProduct
 );
@@ -327,6 +329,7 @@ router.put(
   authorize("admin"),
   productIdValidator,
   upload.array("images", 10),
+  parseMultipartJson,
   updateProductValidator,
   updateProduct
 );
