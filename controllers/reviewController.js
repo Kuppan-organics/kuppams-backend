@@ -15,13 +15,24 @@ exports.getReviewsByProduct = async (req, res, next) => {
       });
     }
 
-    const reviews = await Review.find({ product: req.params.productId })
-      .sort({ createdAt: -1 })
-      .lean();
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [reviews, total] = await Promise.all([
+      Review.find({ product: req.params.productId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Review.countDocuments({ product: req.params.productId }),
+    ]);
 
     res.json({
       success: true,
       count: reviews.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
       reviews,
     });
   } catch (error) {

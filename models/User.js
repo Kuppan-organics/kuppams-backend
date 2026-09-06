@@ -21,6 +21,22 @@ const userSchema = new mongoose.Schema({
     minlength: 6,
     select: false,
   },
+  passwordResetOtpHash: {
+    type: String,
+    select: false,
+  },
+  passwordResetOtpExpires: {
+    type: Date,
+    select: false,
+  },
+  passwordResetVerifiedUntil: {
+    type: Date,
+    select: false,
+  },
+  passwordResetLastRequestedAt: {
+    type: Date,
+    select: false,
+  },
   role: {
     type: String,
     enum: ["user", "admin"],
@@ -42,6 +58,24 @@ const userSchema = new mongoose.Schema({
     zipCode: String,
     country: String,
   },
+  savedAddresses: [
+    {
+      label: {
+        type: String,
+        enum: ["home", "work", "other"],
+        required: true,
+      },
+      firstName: { type: String, trim: true },
+      lastName: { type: String, trim: true },
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      zipCode: { type: String, trim: true },
+      country: { type: String, trim: true, default: "India" },
+      phone: { type: String, trim: true },
+      isDefault: { type: Boolean, default: false },
+    },
+  ],
 }, {
   timestamps: true,
 });

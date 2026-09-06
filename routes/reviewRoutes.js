@@ -12,6 +12,7 @@ const {
   updateReviewValidator,
   reviewIdValidator,
   productIdParamValidator,
+  paginationValidator,
 } = require("../middleware/validator");
 
 /**
@@ -58,6 +59,18 @@ const {
  *         schema:
  *           type: string
  *         description: Product ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Items per page
  *     responses:
  *       200:
  *         description: Reviews retrieved successfully
@@ -70,6 +83,12 @@ const {
  *                   type: boolean
  *                 count:
  *                   type: integer
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pages:
+ *                   type: integer
  *                 reviews:
  *                   type: array
  *                   items:
@@ -78,6 +97,7 @@ const {
 router.get(
   "/product/:productId",
   productIdParamValidator,
+  paginationValidator,
   getReviewsByProduct
 );
 

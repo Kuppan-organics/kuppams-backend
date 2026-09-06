@@ -108,4 +108,8 @@ productSchema.virtual("discountedPrice").get(function () {
 // Ensure virtuals are included in JSON
 productSchema.set("toJSON", { virtuals: true });
 
+productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ category: 1, isActive: 1 });
+productSchema.index({ name: "text", description: "text" });
+
 module.exports = mongoose.model("Product", productSchema);

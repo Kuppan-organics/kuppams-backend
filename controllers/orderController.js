@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
@@ -6,19 +7,66 @@ const { validationResult } = require("express-validator");
 const { emitNewOrder, emitOrderStatusUpdate } = require("../utils/socketService");
 const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
 
+const applyStockChanges = async (stockChanges, session = null) => {
+  if (stockChanges.length === 0) {
+    return;
+  }
+
+  const options = session ? { session } : {};
+
+  const result = await Product.bulkWrite(
+    stockChanges.map(({ productId, quantityDelta }) => ({
+      updateOne: {
+        filter:
+          quantityDelta < 0
+            ? { _id: productId, stock: { $gte: Math.abs(quantityDelta) } }
+            : { _id: productId },
+        update: { $inc: { stock: quantityDelta } },
+      },
+    })),
+    options
+  );
+
+  if (result.modifiedCount !== stockChanges.length) {
+    const error = new Error("Insufficient stock for one or more products");
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
 // @desc    Get user's orders
 // @route   GET /api/orders
 // @access  Private
 exports.getOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.user.id })
-      .populate("items.product")
-      .sort({ createdAt: -1 });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+      });
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [orders, total] = await Promise.all([
+      Order.find({ user: req.user.id })
+        .populate("items.product", "name price discount images quantity")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Order.countDocuments({ user: req.user.id }),
+    ]);
 
     res.json({
       success: true,
       count: orders.length,
-      orders
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      orders,
     });
   } catch (error) {
     next(error);
@@ -118,11 +166,6 @@ exports.createOrder = async (req, res, next) => {
         price: product.price,
         discount: product.discount,
       });
-
-      // Reduce product stock when order is placed
-      // stock is reduced by the quantity being sold
-      product.stock -= item.quantity;
-      await product.save();
     }
 
     // Apply coupon discount if provided
@@ -174,50 +217,86 @@ exports.createOrder = async (req, res, next) => {
       couponDiscount = coupon.discountPercentage;
       discountAmount = (totalAmount * couponDiscount) / 100;
       finalAmount = totalAmount - discountAmount;
-
-      // Increment coupon usage
-      coupon.usedCount += 1;
-      await coupon.save();
     }
 
-    // Create order with initial status "placed"
-    const order = await Order.create({
-      user: req.user.id,
-      items: orderItems,
-      totalAmount,
-      couponCode: couponCode ? couponCode.toUpperCase() : null,
-      couponDiscount,
-      discountAmount,
-      finalAmount,
-      shippingAddress: shippingAddress || req.user.address,
-      status: "placed",
-      paymentStatus: "pending",
-      statusTimeline: [{
-        status: "placed",
-        timestamp: new Date(),
-        note: couponCode ? `Order placed successfully with coupon ${couponCode.toUpperCase()}` : "Order placed successfully",
-      }],
-    });
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Clear cart
-    cart.items = [];
-    await cart.save();
+    try {
+      await applyStockChanges(
+        orderItems.map((item) => ({
+          productId: item.product,
+          quantityDelta: -item.quantity,
+        })),
+        session
+      );
 
-    await order.populate("items.product");
-    await order.populate("user", "name email");
+      const [order] = await Order.create(
+        [
+          {
+            user: req.user.id,
+            items: orderItems,
+            totalAmount,
+            couponCode: couponCode ? couponCode.toUpperCase() : null,
+            couponDiscount,
+            discountAmount,
+            finalAmount,
+            shippingAddress: shippingAddress || req.user.address,
+            status: "placed",
+            paymentStatus: "pending",
+            statusTimeline: [
+              {
+                status: "placed",
+                timestamp: new Date(),
+                note: couponCode
+                  ? `Order placed successfully with coupon ${couponCode.toUpperCase()}`
+                  : "Order placed successfully",
+              },
+            ],
+          },
+        ],
+        { session }
+      );
 
-    // Emit socket event to notify admins of new order
-    emitNewOrder(order);
+      cart.items = [];
+      await cart.save({ session });
 
-    // Send order confirmation email with details and pricing (non-blocking)
-    sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
-      console.error("[Order] Confirmation email failed:", err.message)
-    );
+      if (coupon) {
+        coupon.usedCount += 1;
+        await coupon.save({ session });
+      }
 
-    res.status(201).json({
-      success: true,
-      order
-    });
+      await session.commitTransaction();
+
+      await order.populate([
+        { path: "items.product" },
+        { path: "user", select: "name email" },
+      ]);
+
+      // Emit socket event to notify admins of new order
+      emitNewOrder(order);
+
+      // Send order confirmation email with details and pricing (non-blocking)
+      sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
+        console.error("[Order] Confirmation email failed:", err.message)
+      );
+
+      res.status(201).json({
+        success: true,
+        order,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      if (error.statusCode === 400) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    } finally {
+      session.endSession();
+    }
   } catch (error) {
     next(error);
   }
@@ -308,10 +387,6 @@ exports.buyNow = async (req, res, next) => {
       couponDiscount = coupon.discountPercentage;
       discountAmount = (totalAmount * couponDiscount) / 100;
       finalAmount = totalAmount - discountAmount;
-
-      // Increment coupon usage
-      coupon.usedCount += 1;
-      await coupon.save();
     }
 
     // Prepare order item
@@ -323,45 +398,79 @@ exports.buyNow = async (req, res, next) => {
       discount: product.discount,
     }];
 
-    // Create order with initial status "placed"
-    const order = await Order.create({
-      user: req.user.id,
-      items: orderItems,
-      totalAmount,
-      couponCode: couponCode ? couponCode.toUpperCase() : null,
-      couponDiscount,
-      discountAmount,
-      finalAmount,
-      shippingAddress: shippingAddress || req.user.address,
-      status: "placed",
-      paymentStatus: "pending",
-      statusTimeline: [{
-        status: "placed",
-        timestamp: new Date(),
-        note: couponCode ? `Order placed successfully (Buy Now) with coupon ${couponCode.toUpperCase()}` : "Order placed successfully (Buy Now)",
-      }],
-    });
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Reduce product stock
-    product.stock -= quantity;
-    await product.save();
+    try {
+      await applyStockChanges(
+        [{ productId: product._id, quantityDelta: -quantity }],
+        session
+      );
 
-    await order.populate("items.product");
-    await order.populate("user", "name email");
+      const [order] = await Order.create(
+        [
+          {
+            user: req.user.id,
+            items: orderItems,
+            totalAmount,
+            couponCode: couponCode ? couponCode.toUpperCase() : null,
+            couponDiscount,
+            discountAmount,
+            finalAmount,
+            shippingAddress: shippingAddress || req.user.address,
+            status: "placed",
+            paymentStatus: "pending",
+            statusTimeline: [
+              {
+                status: "placed",
+                timestamp: new Date(),
+                note: couponCode
+                  ? `Order placed successfully (Buy Now) with coupon ${couponCode.toUpperCase()}`
+                  : "Order placed successfully (Buy Now)",
+              },
+            ],
+          },
+        ],
+        { session }
+      );
 
-    // Emit socket event to notify admins of new order
-    emitNewOrder(order);
+      if (coupon) {
+        coupon.usedCount += 1;
+        await coupon.save({ session });
+      }
 
-    // Send order confirmation email with details and pricing (non-blocking)
-    sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
-      console.error("[Order] Confirmation email failed (buy-now):", err.message)
-    );
+      await session.commitTransaction();
 
-    res.status(201).json({
-      success: true,
-      message: "Order placed successfully",
-      order
-    });
+      await order.populate([
+        { path: "items.product" },
+        { path: "user", select: "name email" },
+      ]);
+
+      // Emit socket event to notify admins of new order
+      emitNewOrder(order);
+
+      // Send order confirmation email with details and pricing (non-blocking)
+      sendOrderConfirmationEmail({ user: order.user, order }).catch((err) =>
+        console.error("[Order] Confirmation email failed (buy-now):", err.message)
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Order placed successfully",
+        order,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      if (error.statusCode === 400) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    } finally {
+      session.endSession();
+    }
   } catch (error) {
     next(error);
   }
@@ -396,16 +505,12 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status && status !== previousStatus) {
       // If order is being cancelled, restore stock and coupon usage
       if (status === "cancelled" && previousStatus !== "cancelled" && previousStatus !== "delivered") {
-        await order.populate("items.product");
-        
-        for (const item of order.items) {
-          const product = item.product;
-          if (product) {
-            // Restore the quantity that was sold
-            product.stock += item.quantity;
-            await product.save();
-          }
-        }
+        await applyStockChanges(
+          order.items.map((item) => ({
+            productId: item.product,
+            quantityDelta: item.quantity,
+          }))
+        );
 
         // Restore coupon usage if coupon was used
         if (order.couponCode) {
@@ -416,35 +521,44 @@ exports.updateOrderStatus = async (req, res, next) => {
           }
         }
       }
-      
+
       // If order was cancelled and is now being reactivated, reduce stock again and increment coupon usage
       if (previousStatus === "cancelled" && status !== "cancelled") {
-        await order.populate("items.product");
-        
+        const products = await Product.find({
+          _id: { $in: order.items.map((item) => item.product) },
+        }).select("_id name stock");
+
+        const productMap = new Map(
+          products.map((product) => [product._id.toString(), product])
+        );
+
         for (const item of order.items) {
-          const product = item.product;
-          if (product) {
-            // Check if stock is available
-            if (product.stock < item.quantity) {
-              return res.status(400).json({
-                success: false,
-                message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Required: ${item.quantity}`,
-              });
-            }
-            // Reduce stock again
-            product.stock -= item.quantity;
-            await product.save();
+          const product = productMap.get(item.product.toString());
+          if (product && product.stock < item.quantity) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Required: ${item.quantity}`,
+            });
           }
         }
+
+        await applyStockChanges(
+          order.items.map((item) => ({
+            productId: item.product,
+            quantityDelta: -item.quantity,
+          }))
+        );
 
         // Increment coupon usage again if coupon was used
         if (order.couponCode) {
           const coupon = await Coupon.findOne({ code: order.couponCode });
           if (coupon) {
             // Validate coupon is still valid before incrementing
-            if (coupon.isActive && 
-                (!coupon.expiryDate || new Date() <= coupon.expiryDate) &&
-                (!coupon.usageLimit || coupon.usedCount < coupon.usageLimit)) {
+            if (
+              coupon.isActive &&
+              (!coupon.expiryDate || new Date() <= coupon.expiryDate) &&
+              (!coupon.usageLimit || coupon.usedCount < coupon.usageLimit)
+            ) {
               coupon.usedCount += 1;
               await coupon.save();
             }
@@ -483,8 +597,10 @@ exports.updateOrderStatus = async (req, res, next) => {
     }
 
     await order.save();
-    await order.populate("items.product");
-    await order.populate("user", "name email");
+    await order.populate([
+      { path: "items.product" },
+      { path: "user", select: "name email" },
+    ]);
 
     // Emit socket event to notify admins of order status update
     emitOrderStatusUpdate(order);

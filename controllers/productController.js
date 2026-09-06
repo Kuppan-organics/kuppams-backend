@@ -1,8 +1,28 @@
 const Product = require("../models/Product");
+const Order = require("../models/Order");
 const Review = require("../models/Review");
 const Cart = require("../models/Cart");
 const { validationResult } = require("express-validator");
-const { deleteImage, deleteImages } = require("../config/cloudinary");
+const { deleteImages } = require("../config/cloudinary");
+
+const formatProductResponse = (product, extras = {}) => ({
+  id: product._id,
+  name: product.name,
+  description: product.description,
+  category: product.category,
+  price: product.price,
+  discount: product.discount || 0,
+  images: product.images,
+  quantity: product.quantity,
+  stock: product.stock,
+  variants: product.variants,
+  isActive: product.isActive,
+  discountedPrice:
+    product.discount > 0
+      ? product.price * (1 - product.discount / 100)
+      : product.price,
+  ...extras,
+});
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -15,7 +35,7 @@ exports.getProducts = async (req, res, next) => {
     const query = { isActive: true };
 
     if (category) {
-      query.category = { $regex: category, $options: "i" };
+      query.category = category;
     }
 
     if (search) {
@@ -29,24 +49,17 @@ exports.getProducts = async (req, res, next) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const products = await Product.find(query)
+      .select("name category price discount images quantity variants isActive")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean({ virtuals: true });
 
     const total = await Product.countDocuments(query);
 
-    const formattedProducts = products.map((product) => ({
-      name: product.name,
-      category: product.category,
-      price: product.price,
-      discount: product.discount,
-      images: product.images,
-      quantity: product.quantity,
-      variants: product.variants,
-      isActive: product.isActive,
-      discountedPrice: product.discountedPrice,
-      id: product._id,
-    }));
+    const formattedProducts = products.map((product) =>
+      formatProductResponse(product)
+    );
 
     res.json({
       success: true,
@@ -186,9 +199,7 @@ exports.updateProduct = async (req, res, next) => {
 
       // Delete old images from Cloudinary if requested
       if (req.body.deleteOldImages === "true" && product.images.length > 0) {
-        for (const imageUrl of product.images) {
-          await deleteImage(imageUrl);
-        }
+        await deleteImages(product.images);
         updateData.images = newImages;
       } else {
         // Append new images to existing ones
@@ -256,6 +267,78 @@ exports.deleteProduct = async (req, res, next) => {
     res.json({
       success: true,
       message: "Product deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get best selling products
+// @route   GET /api/products/best-selling
+// @access  Public
+exports.getBestSellingProducts = async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 4, 1), 12);
+
+    const salesAgg = await Order.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.product",
+          totalSold: { $sum: "$items.quantity" },
+        },
+      },
+      { $sort: { totalSold: -1 } },
+      { $limit: limit },
+    ]);
+
+    let products = [];
+
+    if (salesAgg.length > 0) {
+      const productIds = salesAgg.map((entry) => entry._id);
+      const productDocs = await Product.find({
+        _id: { $in: productIds },
+        isActive: true,
+      }).lean();
+
+      const salesMap = new Map(
+        salesAgg.map((entry) => [entry._id.toString(), entry.totalSold])
+      );
+
+      products = productIds
+        .map((id) => {
+          const product = productDocs.find(
+            (doc) => doc._id.toString() === id.toString()
+          );
+          if (!product) return null;
+          return formatProductResponse(product, {
+            totalSold: salesMap.get(id.toString()) || 0,
+          });
+        })
+        .filter(Boolean);
+    }
+
+    if (products.length < limit) {
+      const excludeIds = products.map((product) => product.id);
+      const fallbackProducts = await Product.find({
+        isActive: true,
+        _id: { $nin: excludeIds },
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit - products.length)
+        .lean();
+
+      products = [
+        ...products,
+        ...fallbackProducts.map((product) => formatProductResponse(product)),
+      ];
+    }
+
+    res.json({
+      success: true,
+      count: products.length,
+      products,
     });
   } catch (error) {
     next(error);

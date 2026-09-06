@@ -10,60 +10,44 @@ exports.getAllProducts = async (req, res, next) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const products = await Product.find()
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const [products, total] = await Promise.all([
+      Product.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Product.countDocuments(),
+    ]);
 
-    const total = await Product.countDocuments();
+    const productIds = products.map((product) => product._id);
+    let orderedQtyMap = new Map();
 
-    // Calculate available stock for each product by accounting for ordered quantities
-    // We sum the quantities (not just count orders) from active orders
-    const productsWithAvailableStock = await Promise.all(
-      products.map(async (product) => {
-        // Aggregate ordered quantities for this product
-        // Sum quantities (not just count orders) from all non-cancelled orders
-        // Cancelled orders restore stock, so we exclude them
-        const orderAggregation = await Order.aggregate([
-          {
-            $match: {
-              status: { $ne: "cancelled" }, // Exclude cancelled orders as they restore stock
-            },
+    if (productIds.length > 0) {
+      const orderedQtyByProduct = await Order.aggregate([
+        { $match: { status: { $ne: "cancelled" } } },
+        { $unwind: "$items" },
+        { $match: { "items.product": { $in: productIds } } },
+        {
+          $group: {
+            _id: "$items.product",
+            totalOrderedQuantity: { $sum: "$items.quantity" },
           },
-          {
-            $unwind: "$items",
-          },
-          {
-            $match: {
-              "items.product": product._id,
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              totalOrderedQuantity: { $sum: "$items.quantity" },
-            },
-          },
-        ]);
+        },
+      ]);
 
-        const totalOrderedQuantity =
-          orderAggregation.length > 0
-            ? orderAggregation[0].totalOrderedQuantity
-            : 0;
+      orderedQtyMap = new Map(
+        orderedQtyByProduct.map((entry) => [
+          entry._id.toString(),
+          entry.totalOrderedQuantity,
+        ])
+      );
+    }
 
-        // Calculate available stock
-        // Note: product.stock is already reduced when orders are placed and restored when cancelled
-        // So product.stock represents the current available stock
-        // We calculate totalOrderedQuantity (sum of quantities, not order count) for reference
-        const availableStock = Math.max(0, product.stock);
-
-        return {
-          ...product.toObject(),
-          availableStock,
-          totalOrderedQuantity, // Total quantity in active orders (for reference)
-        };
-      })
-    );
+    const productsWithAvailableStock = products.map((product) => ({
+      ...product,
+      availableStock: Math.max(0, product.stock),
+      totalOrderedQuantity: orderedQtyMap.get(product._id.toString()) || 0,
+    }));
 
     res.json({
       success: true,
@@ -147,25 +131,31 @@ exports.getAllUsers = async (req, res, next) => {
 // @access  Private/Admin
 exports.getStats = async (req, res, next) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-
-    const totalRevenue = await Order.aggregate([
-      { $match: { paymentStatus: "paid" } },
-      { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+    const [
+      totalUsers,
+      totalProducts,
+      totalOrders,
+      totalRevenue,
+      ordersByStatus,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Product.countDocuments(),
+      Order.countDocuments(),
+      Order.aggregate([
+        { $match: { paymentStatus: "paid" } },
+        { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+      ]),
+      Order.aggregate([
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
     const revenue = totalRevenue.length > 0 ? totalRevenue[0].total : 0;
-
-    const ordersByStatus = await Order.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
 
     res.json({
       success: true,

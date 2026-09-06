@@ -109,6 +109,19 @@ const {
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Items per page
  *     responses:
  *       200:
  *         description: Orders retrieved successfully
@@ -121,6 +134,12 @@ const {
  *                   type: boolean
  *                 count:
  *                   type: integer
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pages:
+ *                   type: integer
  *                 orders:
  *                   type: array
  *                   items:
@@ -128,7 +147,7 @@ const {
  *       401:
  *         description: Not authorized
  */
-router.get("/", protect, getOrders);
+router.get("/", protect, paginationValidator, getOrders);
 
 /**
  * @swagger

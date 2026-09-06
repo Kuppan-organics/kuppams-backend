@@ -295,9 +295,52 @@ function getOrderConfirmationEmailHtml({ userName, orderNumber, order, orderDate
 /**
  * Order status update email – for: accepted, sent_to_delivery, delivered.
  */
-function getOrderStatusEmailHtml({ userName, orderNumber, status, orderDate, expectedDeliveryDate, note }) {
+function getOrderStatusEmailHtml({
+  userName,
+  orderNumber,
+  status,
+  orderDate,
+  expectedDeliveryDate,
+  note,
+  items = [],
+}) {
   const dateStr = orderDate ? new Date(orderDate).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
   const expectedStr = expectedDeliveryDate ? new Date(expectedDeliveryDate).toLocaleDateString("en-IN", { dateStyle: "medium" }) : null;
+
+  let itemRows = "";
+  for (const item of items) {
+    const itemTotal = getItemPrice(item);
+    const priceDisplay = item.discount
+      ? `${formatCurrency(item.price)} (${item.discount}% off)`
+      : formatCurrency(item.price);
+    itemRows += `
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #eee;">${item.name || "Product"}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">${item.quantity || 1}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:right;">${priceDisplay}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:right;">${formatCurrency(itemTotal)}</td>
+      </tr>`;
+  }
+
+  const itemsSection =
+    items.length > 0
+      ? `
+              <p style="margin:24px 0 8px; font-weight:bold;">🛒 Your Order Items</p>
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="margin:0 0 20px; border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f5f0e8;">
+                    <th style="padding:12px; text-align:left;">Item</th>
+                    <th style="padding:12px; text-align:center;">Qty</th>
+                    <th style="padding:12px; text-align:right;">Price</th>
+                    <th style="padding:12px; text-align:right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemRows}
+                </tbody>
+              </table>`
+      : "";
 
   const statusConfig = {
     accepted: {
@@ -397,6 +440,8 @@ function getOrderStatusEmailHtml({ userName, orderNumber, status, orderDate, exp
                 </tr>
               </table>
 
+              ${itemsSection}
+
               <!-- Optional Note -->
               ${note ? `
               <div style="margin:18px 0; padding:14px; background:#f5f0e8; border-left:4px solid #8b5e34; border-radius:8px;">
@@ -433,10 +478,66 @@ function getOrderStatusEmailHtml({ userName, orderNumber, status, orderDate, exp
 `.trim();
 }
 
+function getPasswordResetOtpEmailHtml({ name, otp }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Reset OTP - ${APP_NAME}</title>
+</head>
+<body style="margin:0; padding:0; background:#f3efe9; font-family:Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0"
+          style="max-width:620px; background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:${WALNUT.headerGradient}; padding:28px; text-align:center;">
+              <h1 style="margin:0; color:${WALNUT.textOnHeader}; font-size:22px;">
+                Password Reset Code
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px; color:#3d2914;">
+              <p style="font-size:18px; margin:0 0 8px;">Hi <strong>${name}</strong>,</p>
+              <p style="margin:0 0 16px; line-height:1.6;">
+                Use the one-time code below to reset your password. This code expires in <strong>10 minutes</strong>.
+              </p>
+              <div style="margin:24px 0; padding:20px; background:#faf7f2; border:1px solid ${WALNUT.border}; border-radius:12px; text-align:center;">
+                <p style="margin:0 0 8px; font-size:13px; opacity:0.8;">Your OTP</p>
+                <p style="margin:0; font-size:32px; font-weight:bold; letter-spacing:8px; color:#3d2914;">
+                  ${otp}
+                </p>
+              </div>
+              <p style="margin:0; font-size:14px; color:#6b5a47; line-height:1.5;">
+                If you didn't request a password reset, you can safely ignore this email.
+              </p>
+              <p style="margin:24px 0 0;">
+                Warm regards,<br>
+                <strong>${APP_NAME} Team</strong>
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0; font-size:12px; color:#8a7a68;">
+          © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`.trim();
+}
+
 module.exports = {
   getRegistrationEmailHtml,
   getOrderConfirmationEmailHtml,
   getOrderStatusEmailHtml,
+  getPasswordResetOtpEmailHtml,
   formatCurrency,
   APP_NAME,
 };

@@ -1,6 +1,13 @@
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
-const { sendRegistrationEmail } = require("../utils/emailService");
+const { sendRegistrationEmail, sendPasswordResetOtpEmail } = require("../utils/emailService");
+const {
+  hashOtp,
+  generateOtp,
+  OTP_EXPIRY_MS,
+  RESEND_COOLDOWN_MS,
+  VERIFIED_WINDOW_MS,
+} = require("../utils/passwordReset");
 const { validationResult } = require("express-validator");
 
 // @desc    Register user
@@ -40,7 +47,7 @@ exports.register = async (req, res, next) => {
       console.error("[Auth] Registration email failed:", err.message)
     );
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     // Explicitly exclude password from response
     res.status(201).json({
@@ -92,7 +99,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     // Password is already excluded due to select: false in User schema
     res.json({
@@ -282,6 +289,163 @@ exports.updateProfilePhoto = async (req, res, next) => {
       success: true,
       message: "Profile photo updated successfully",
       user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const GENERIC_RESET_MESSAGE =
+  "If an account exists with this email, a password reset code has been sent.";
+
+// @desc    Request password reset OTP
+// @route   POST /api/auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+      });
+    }
+
+    const email = String(req.body.email).toLowerCase().trim();
+    const user = await User.findOne({ email }).select(
+      "+passwordResetLastRequestedAt",
+    );
+
+    if (!user) {
+      return res.json({
+        success: true,
+        message: GENERIC_RESET_MESSAGE,
+      });
+    }
+
+    if (
+      user.passwordResetLastRequestedAt &&
+      Date.now() - user.passwordResetLastRequestedAt.getTime() <
+        RESEND_COOLDOWN_MS
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Please wait a minute before requesting another code.",
+      });
+    }
+
+    const otp = generateOtp();
+    user.passwordResetOtpHash = hashOtp(otp, email);
+    user.passwordResetOtpExpires = new Date(Date.now() + OTP_EXPIRY_MS);
+    user.passwordResetVerifiedUntil = undefined;
+    user.passwordResetLastRequestedAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    sendPasswordResetOtpEmail({
+      name: user.name,
+      email: user.email,
+      otp,
+    }).catch((err) =>
+      console.error("[Auth] Password reset OTP email failed:", err.message),
+    );
+
+    res.json({
+      success: true,
+      message: GENERIC_RESET_MESSAGE,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify password reset OTP
+// @route   POST /api/auth/verify-otp
+// @access  Public
+exports.verifyOtp = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+      });
+    }
+
+    const email = String(req.body.email).toLowerCase().trim();
+    const otp = String(req.body.otp).trim();
+
+    const user = await User.findOne({ email }).select(
+      "+passwordResetOtpHash +passwordResetOtpExpires",
+    );
+
+    if (
+      !user ||
+      !user.passwordResetOtpHash ||
+      !user.passwordResetOtpExpires ||
+      user.passwordResetOtpExpires < new Date() ||
+      user.passwordResetOtpHash !== hashOtp(otp, email)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code.",
+      });
+    }
+
+    user.passwordResetVerifiedUntil = new Date(
+      Date.now() + VERIFIED_WINDOW_MS,
+    );
+    await user.save({ validateBeforeSave: false });
+
+    res.json({
+      success: true,
+      message: "Verification code confirmed. You can now set a new password.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reset password after OTP verification
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+      });
+    }
+
+    const email = String(req.body.email).toLowerCase().trim();
+    const { password } = req.body;
+
+    const user = await User.findOne({ email }).select(
+      "+password +passwordResetVerifiedUntil",
+    );
+
+    if (
+      !user ||
+      !user.passwordResetVerifiedUntil ||
+      user.passwordResetVerifiedUntil < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please verify your code before resetting your password.",
+      });
+    }
+
+    user.password = password;
+    user.passwordResetOtpHash = undefined;
+    user.passwordResetOtpExpires = undefined;
+    user.passwordResetVerifiedUntil = undefined;
+    user.passwordResetLastRequestedAt = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password reset successfully. You can now sign in.",
     });
   } catch (error) {
     next(error);

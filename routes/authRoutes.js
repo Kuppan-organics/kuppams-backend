@@ -7,13 +7,26 @@ const {
   updateProfile,
   getCompleteProfile,
   updateProfilePhoto,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
 } = require("../controllers/authController");
+const {
+  getAddresses,
+  upsertAddress,
+  deleteAddress,
+} = require("../controllers/addressController");
 const { protect } = require("../middleware/auth");
 const {
   registerValidator,
   loginValidator,
+  forgotPasswordValidator,
+  verifyOtpValidator,
+  resetPasswordValidator,
   updateProfileValidator,
   updateProfilePhotoValidator,
+  upsertAddressValidator,
+  deleteAddressValidator,
 } = require("../middleware/validator");
 
 /**
@@ -143,6 +156,10 @@ router.post("/register", registerValidator, register);
  *         description: Invalid credentials
  */
 router.post("/login", loginValidator, login);
+
+router.post("/forgot-password", forgotPasswordValidator, forgotPassword);
+router.post("/verify-otp", verifyOtpValidator, verifyOtp);
+router.post("/reset-password", resetPasswordValidator, resetPassword);
 
 /**
  * @swagger
@@ -313,5 +330,92 @@ router.get("/profile/complete", protect, getCompleteProfile);
  *         description: Not authorized
  */
 router.put("/profile/photo", protect, updateProfilePhotoValidator, updateProfilePhoto);
+
+/**
+ * @swagger
+ * /api/auth/addresses:
+ *   get:
+ *     summary: Get user's saved shipping addresses
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of saved addresses (max 3)
+ */
+router.get("/addresses", protect, getAddresses);
+
+/**
+ * @swagger
+ * /api/auth/addresses/{label}:
+ *   put:
+ *     summary: Create or update a saved address by label
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: label
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [home, work, other]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - street
+ *               - city
+ *               - state
+ *               - zipCode
+ *               - phone
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               street:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               state:
+ *                 type: string
+ *               zipCode:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Address saved successfully
+ */
+router.put("/addresses/:label", protect, upsertAddressValidator, upsertAddress);
+
+/**
+ * @swagger
+ * /api/auth/addresses/{label}:
+ *   delete:
+ *     summary: Delete a saved address by label
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: label
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [home, work, other]
+ *     responses:
+ *       200:
+ *         description: Address deleted successfully
+ */
+router.delete("/addresses/:label", protect, deleteAddressValidator, deleteAddress);
 
 module.exports = router;

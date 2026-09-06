@@ -36,6 +36,44 @@ exports.loginValidator = [
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
+exports.forgotPasswordValidator = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email"),
+];
+
+exports.verifyOtpValidator = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email"),
+  body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("Verification code is required")
+    .matches(/^[0-9]{6}$/)
+    .withMessage("Verification code must be 6 digits"),
+];
+
+exports.resetPasswordValidator = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email"),
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
+];
+
 exports.updateProfileValidator = [
   body("name")
     .optional()
@@ -66,6 +104,36 @@ exports.updateProfilePhotoValidator = [
     .trim()
     .isURL()
     .withMessage("Profile photo must be a valid URL"),
+];
+
+exports.upsertAddressValidator = [
+  param("label")
+    .isIn(["home", "work", "other"])
+    .withMessage("Label must be home, work, or other"),
+  body("firstName").trim().notEmpty().withMessage("First name is required"),
+  body("lastName").trim().notEmpty().withMessage("Last name is required"),
+  body("street").trim().notEmpty().withMessage("Street address is required"),
+  body("city").trim().notEmpty().withMessage("City is required"),
+  body("state").trim().notEmpty().withMessage("State is required"),
+  body("zipCode")
+    .trim()
+    .notEmpty()
+    .withMessage("PIN code is required")
+    .matches(/^\d{6}$/)
+    .withMessage("PIN code must be 6 digits"),
+  body("phone")
+    .trim()
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Phone must be 10 digits"),
+  body("country").optional().trim(),
+];
+
+exports.deleteAddressValidator = [
+  param("label")
+    .isIn(["home", "work", "other"])
+    .withMessage("Label must be home, work, or other"),
 ];
 
 // Product validators

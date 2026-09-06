@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getProducts,
   getProduct,
+  getBestSellingProducts,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -158,6 +159,25 @@ router.get("/", paginationValidator, getProducts);
  *                     type: string
  */
 router.get("/categories", getCategories);
+
+/**
+ * @swagger
+ * /api/products/best-selling:
+ *   get:
+ *     summary: Get best selling products
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 4
+ *         description: Number of products to return (max 12)
+ *     responses:
+ *       200:
+ *         description: Best selling products retrieved successfully
+ */
+router.get("/best-selling", getBestSellingProducts);
 
 /**
  * @swagger

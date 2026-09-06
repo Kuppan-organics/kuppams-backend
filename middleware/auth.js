@@ -1,6 +1,14 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const buildUserFromToken = (decoded) => ({
+  id: decoded.id,
+  _id: decoded.id,
+  role: decoded.role,
+  name: decoded.name,
+  email: decoded.email,
+});
+
 // Protect routes - verify JWT token
 exports.protect = async (req, res, next) => {
   try {
@@ -19,10 +27,14 @@ exports.protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from token
+      if (decoded.role && decoded.email) {
+        req.user = buildUserFromToken(decoded);
+        return next();
+      }
+
+      // Fallback for older tokens without embedded claims
       req.user = await User.findById(decoded.id).select("-password");
 
       if (!req.user) {

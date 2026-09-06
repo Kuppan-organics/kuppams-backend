@@ -134,4 +134,9 @@ orderItemSchema.virtual("itemTotal").get(function() {
 
 orderSchema.set("toJSON", { virtuals: true });
 
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ paymentStatus: 1 });
+orderSchema.index({ "items.product": 1, status: 1 });
+
 module.exports = mongoose.model("Order", orderSchema);

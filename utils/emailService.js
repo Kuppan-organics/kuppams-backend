@@ -1,14 +1,13 @@
 const path = require("path");
 const fs = require("fs");
-const { transport } = require("../config/email");
+const { getEmailRuntime } = require("../config/email");
 const {
   getRegistrationEmailHtml,
   getOrderConfirmationEmailHtml,
   getOrderStatusEmailHtml,
+  getPasswordResetOtpEmailHtml,
   APP_NAME,
 } = require("./emailTemplates");
-
-const FROM = process.env.EMAIL_FROM || `"${APP_NAME}" <noreply@kuppamorganics.com>`;
 
 const LOGO_PATH = path.join(__dirname, "assests", "kuppam_organics-logo.png");
 const LOGO_CID = "kuppam-logo";
@@ -30,10 +29,10 @@ function getLogoAttachment() {
   return [];
 }
 
-/**
- * Send email. Never throws; logs errors so API responses are not affected.
- */
 async function sendMail({ to, subject, html, attachments = [] }) {
+  const { transport, emailConfig } = getEmailRuntime();
+  const FROM = emailConfig.emailFrom;
+
   try {
     const allAttachments = [...getLogoAttachment(), ...attachments];
     const info = await transport.sendMail({
@@ -43,10 +42,27 @@ async function sendMail({ to, subject, html, attachments = [] }) {
       html,
       attachments: allAttachments.length ? allAttachments : undefined,
     });
-    if (process.env.NODE_ENV !== "production" && info.messageId) {
-      console.log("[Email] Sent:", subject, "to", to, "messageId:", info.messageId);
+
+    if (!emailConfig.isConfigured) {
+      console.warn(
+        "[Email] NOT sent (SMTP not configured):",
+        subject,
+        "to",
+        to,
+      );
+      return { sent: false, simulated: true, messageId: info.messageId };
     }
-    return { sent: true, messageId: info.messageId };
+
+    console.log(
+      "[Email] Sent:",
+      subject,
+      "to",
+      to,
+      "messageId:",
+      info.messageId,
+      info.response ? `response: ${info.response}` : "",
+    );
+    return { sent: true, messageId: info.messageId, response: info.response };
   } catch (err) {
     console.error("[Email] Failed to send:", subject, "to", to, err.message);
     return { sent: false, error: err.message };
@@ -125,6 +141,7 @@ async function sendOrderStatusEmail({ user, order, newStatus, note }) {
     orderDate,
     expectedDeliveryDate: order?.expectedDeliveryDate || null,
     note: note || lastTimeline?.note,
+    items: order?.items || [],
   });
 
   const subjectTitles = {
@@ -141,10 +158,20 @@ async function sendOrderStatusEmail({ user, order, newStatus, note }) {
   });
 }
 
+async function sendPasswordResetOtpEmail({ name, email, otp }) {
+  const html = getPasswordResetOtpEmailHtml({ name: name || "there", otp });
+  return sendMail({
+    to: email,
+    subject: `Your password reset code - ${APP_NAME}`,
+    html,
+  });
+}
+
 module.exports = {
   sendMail,
   sendRegistrationEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
+  sendPasswordResetOtpEmail,
   STATUS_EMAIL_SCENARIOS,
 };

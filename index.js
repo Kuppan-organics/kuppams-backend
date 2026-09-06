@@ -1,5 +1,8 @@
+require("dotenv").config();
+
 const app = require("./app");
 const { connectDB } = require("./config/db");
+const { verifySmtpConnection } = require("./config/email");
 const { initializeSocket } = require("./utils/socketService");
 
 const PORT = process.env.PORT || 3000;
@@ -25,6 +28,15 @@ const startServer = async () => {
     // Initialize Socket.IO
     initializeSocket(server);
     console.log("Socket.IO initialized");
+
+    const smtpStatus = await verifySmtpConnection();
+    if (smtpStatus.ok) {
+      console.log(`[Email] ${smtpStatus.message}`);
+    } else if (smtpStatus.configured) {
+      console.warn(`[Email] SMTP verification failed: ${smtpStatus.message}`);
+    } else {
+      console.warn(`[Email] ${smtpStatus.message}`);
+    }
 
     // Handle unhandled promise rejections
     process.on("unhandledRejection", (err) => {

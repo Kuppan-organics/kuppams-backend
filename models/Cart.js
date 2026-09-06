@@ -27,7 +27,14 @@ const cartSchema = new mongoose.Schema({
 
 // Calculate total price
 cartSchema.methods.calculateTotal = async function() {
-  await this.populate('items.product');
+  const needsPopulate = this.items.some(
+    (item) => !item.product || typeof item.product.price !== "number"
+  );
+
+  if (needsPopulate) {
+    await this.populate("items.product");
+  }
+
   let total = 0;
   this.items.forEach(item => {
     if (item.product) {
@@ -37,5 +44,7 @@ cartSchema.methods.calculateTotal = async function() {
   });
   return total;
 };
+
+cartSchema.index({ "items.product": 1 });
 
 module.exports = mongoose.model('Cart', cartSchema);

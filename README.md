@@ -34,10 +34,25 @@ cp .env.example .env
 
 3. Update the `.env` file with your MongoDB connection string and JWT secret.
 
-4. (Optional) To send emails (registration welcome, order confirmation, order status), set SMTP in `.env`:
-   - `SMTP_HOST`, `SMTP_PORT` (e.g. 587), `SMTP_USER`, `SMTP_PASS`
-   - `EMAIL_FROM` (e.g. `"Kuppam Organics" <noreply@yourdomain.com>`)
+4. Configure SMTP email in `.env` (copy from `.env.example`):
+   ```env
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASS=your_app_password
+   EMAIL_FROM="Kuppam Organics" <noreply@yourdomain.com>
+   ```
    - If SMTP is not set, emails are logged but not sent.
+   - On startup, the server verifies the SMTP connection and logs the result.
+
+   **Common providers:**
+   | Provider | SMTP_HOST | SMTP_PORT | Notes |
+   |----------|-----------|-----------|-------|
+   | Gmail | `smtp.gmail.com` | `587` | Use an [App Password](https://support.google.com/accounts/answer/185833), not your login password |
+   | Outlook / Office 365 | `smtp.office365.com` | `587` | Enable SMTP AUTH for the mailbox |
+   | SendGrid | `smtp.sendgrid.net` | `587` | `SMTP_USER=apikey`, `SMTP_PASS=<your API key>` |
+   | Brevo (Sendinblue) | `smtp-relay.brevo.com` | `587` | Use SMTP key as password |
+   | Zoho Mail | `smtp.zoho.com` | `465` | Set `SMTP_SECURE=true` for port 465 |
 
 5. Run the server:
 ```bash
