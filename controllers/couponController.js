@@ -1,5 +1,6 @@
 const Coupon = require("../models/Coupon");
 const { validationResult } = require("express-validator");
+const { validateCouponForUser } = require("../utils/couponValidation");
 
 // @desc    Get all coupons
 // @route   GET /api/admin/coupons
@@ -79,6 +80,7 @@ exports.createCoupon = async (req, res, next) => {
       expiryDate,
       usageLimit,
       minPurchaseAmount,
+      allowMultipleUsePerUser,
     } = req.body;
 
     // Check if coupon code already exists
@@ -98,6 +100,8 @@ exports.createCoupon = async (req, res, next) => {
       expiryDate: expiryDate || null,
       usageLimit: usageLimit || null,
       minPurchaseAmount: minPurchaseAmount || 0,
+      allowMultipleUsePerUser:
+        allowMultipleUsePerUser !== undefined ? allowMultipleUsePerUser : true,
       usedCount: 0,
     });
 
@@ -215,53 +219,23 @@ exports.validateCoupon = async (req, res, next) => {
 
     const { code, cartTotal } = req.body;
 
-    // Find coupon by code (case insensitive)
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
+    const validation = await validateCouponForUser(
+      coupon,
+      req.user.id,
+      cartTotal,
+    );
 
-    if (!coupon) {
-      return res.status(404).json({
+    if (!validation.valid) {
+      const response = {
         success: false,
-        message: "Invalid coupon code",
-      });
+        message: validation.message,
+      };
+      if (validation.minPurchaseAmount) {
+        response.minPurchaseAmount = validation.minPurchaseAmount;
+      }
+      return res.status(validation.statusCode).json(response);
     }
-
-    // Check if coupon is active
-    if (!coupon.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: "This coupon is not active",
-      });
-    }
-
-    // Check if coupon has expired
-    if (coupon.expiryDate && new Date() > coupon.expiryDate) {
-      return res.status(400).json({
-        success: false,
-        message: "This coupon has expired",
-      });
-    }
-
-    // Check if usage limit has been reached
-    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-      return res.status(400).json({
-        success: false,
-        message: "This coupon has reached its usage limit",
-      });
-    }
-
-    // Check minimum purchase amount
-    const totalAmount = parseFloat(cartTotal) || 0;
-    if (coupon.minPurchaseAmount && totalAmount < coupon.minPurchaseAmount) {
-      return res.status(400).json({
-        success: false,
-        message: `Minimum purchase amount of ₹${coupon.minPurchaseAmount} is required to use this coupon`,
-        minPurchaseAmount: coupon.minPurchaseAmount,
-      });
-    }
-
-    // Calculate discount amount
-    const discountAmount = (totalAmount * coupon.discountPercentage) / 100;
-    const finalAmount = totalAmount - discountAmount;
 
     res.json({
       success: true,
@@ -270,8 +244,8 @@ exports.validateCoupon = async (req, res, next) => {
         code: coupon.code,
         discountPercentage: coupon.discountPercentage,
         description: coupon.description,
-        discountAmount: discountAmount.toFixed(2),
-        finalAmount: finalAmount.toFixed(2),
+        discountAmount: validation.discountAmount.toFixed(2),
+        finalAmount: validation.finalAmount.toFixed(2),
       },
     });
   } catch (error) {

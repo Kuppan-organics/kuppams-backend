@@ -16,6 +16,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const couponRoutes = require("./routes/couponRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const contactRoutes = require("./routes/contactRoutes");
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/contact", contactRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Error handler middleware (must be last)

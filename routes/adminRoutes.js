@@ -508,4 +508,83 @@ router.delete(
   deleteCoupon
 );
 
+const {
+  getContactMessages,
+  updateContactStatus,
+  deleteContactMessage,
+} = require("../controllers/contactController");
+const {
+  contactStatusValidator,
+  contactIdValidator,
+} = require("../middleware/validator");
+
+router.get(
+  "/contacts",
+  protect,
+  authorize("admin"),
+  paginationValidator,
+  getContactMessages,
+);
+
+router.put(
+  "/contacts/:id/status",
+  protect,
+  authorize("admin"),
+  contactIdValidator,
+  contactStatusValidator,
+  updateContactStatus,
+);
+
+router.delete(
+  "/contacts/:id",
+  protect,
+  authorize("admin"),
+  contactIdValidator,
+  deleteContactMessage,
+);
+
+const {
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} = require("../controllers/categoryController");
+const {
+  createCategoryValidator,
+  updateCategoryValidator,
+  categoryIdValidator,
+} = require("../middleware/validator");
+
+router.get(
+  "/categories",
+  protect,
+  authorize("admin"),
+  getCategories,
+);
+
+router.post(
+  "/categories",
+  protect,
+  authorize("admin"),
+  createCategoryValidator,
+  createCategory,
+);
+
+router.put(
+  "/categories/:id",
+  protect,
+  authorize("admin"),
+  categoryIdValidator,
+  updateCategoryValidator,
+  updateCategory,
+);
+
+router.delete(
+  "/categories/:id",
+  protect,
+  authorize("admin"),
+  categoryIdValidator,
+  deleteCategory,
+);
+
 module.exports = router;

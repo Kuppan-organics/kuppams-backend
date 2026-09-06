@@ -6,6 +6,7 @@ const Coupon = require("../models/Coupon");
 const { validationResult } = require("express-validator");
 const { emitNewOrder, emitOrderStatusUpdate } = require("../utils/socketService");
 const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
+const { validateCouponForUser } = require("../utils/couponValidation");
 
 const applyStockChanges = async (stockChanges, session = null) => {
   if (stockChanges.length === 0) {
@@ -177,46 +178,26 @@ exports.createOrder = async (req, res, next) => {
     if (couponCode) {
       coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
 
-      if (!coupon) {
-        return res.status(400).json({
+      const validation = await validateCouponForUser(
+        coupon,
+        req.user.id,
+        totalAmount,
+      );
+
+      if (!validation.valid) {
+        const response = {
           success: false,
-          message: "Invalid coupon code",
-        });
+          message: validation.message,
+        };
+        if (validation.minPurchaseAmount) {
+          response.minPurchaseAmount = validation.minPurchaseAmount;
+        }
+        return res.status(validation.statusCode).json(response);
       }
 
-      // Validate coupon
-      if (!coupon.isActive) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon is not active",
-        });
-      }
-
-      if (coupon.expiryDate && new Date() > coupon.expiryDate) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon has expired",
-        });
-      }
-
-      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon has reached its usage limit",
-        });
-      }
-
-      if (coupon.minPurchaseAmount && totalAmount < coupon.minPurchaseAmount) {
-        return res.status(400).json({
-          success: false,
-          message: `Minimum purchase amount of ₹${coupon.minPurchaseAmount} is required to use this coupon`,
-        });
-      }
-
-      // Calculate discount
       couponDiscount = coupon.discountPercentage;
-      discountAmount = (totalAmount * couponDiscount) / 100;
-      finalAmount = totalAmount - discountAmount;
+      discountAmount = validation.discountAmount;
+      finalAmount = validation.finalAmount;
     }
 
     const session = await mongoose.startSession();
@@ -347,46 +328,26 @@ exports.buyNow = async (req, res, next) => {
     if (couponCode) {
       coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
 
-      if (!coupon) {
-        return res.status(400).json({
+      const validation = await validateCouponForUser(
+        coupon,
+        req.user.id,
+        totalAmount,
+      );
+
+      if (!validation.valid) {
+        const response = {
           success: false,
-          message: "Invalid coupon code",
-        });
+          message: validation.message,
+        };
+        if (validation.minPurchaseAmount) {
+          response.minPurchaseAmount = validation.minPurchaseAmount;
+        }
+        return res.status(validation.statusCode).json(response);
       }
 
-      // Validate coupon
-      if (!coupon.isActive) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon is not active",
-        });
-      }
-
-      if (coupon.expiryDate && new Date() > coupon.expiryDate) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon has expired",
-        });
-      }
-
-      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-        return res.status(400).json({
-          success: false,
-          message: "This coupon has reached its usage limit",
-        });
-      }
-
-      if (coupon.minPurchaseAmount && totalAmount < coupon.minPurchaseAmount) {
-        return res.status(400).json({
-          success: false,
-          message: `Minimum purchase amount of ₹${coupon.minPurchaseAmount} is required to use this coupon`,
-        });
-      }
-
-      // Calculate discount
       couponDiscount = coupon.discountPercentage;
-      discountAmount = (totalAmount * couponDiscount) / 100;
-      finalAmount = totalAmount - discountAmount;
+      discountAmount = validation.discountAmount;
+      finalAmount = validation.finalAmount;
     }
 
     // Prepare order item

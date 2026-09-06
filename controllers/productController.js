@@ -350,7 +350,8 @@ exports.getBestSellingProducts = async (req, res, next) => {
 // @access  Public
 exports.getCategories = async (req, res, next) => {
   try {
-    const categories = await Product.distinct("category", { isActive: true });
+    const { getActiveCategoryNames } = require("./categoryController");
+    const categories = await getActiveCategoryNames();
 
     res.json({
       success: true,

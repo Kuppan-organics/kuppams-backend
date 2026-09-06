@@ -45,6 +45,10 @@ const couponSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Minimum purchase amount cannot be negative"],
     },
+    allowMultipleUsePerUser: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

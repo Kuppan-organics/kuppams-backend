@@ -449,6 +449,10 @@ exports.createCouponValidator = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Minimum purchase amount must be a non-negative number"),
+  body("allowMultipleUsePerUser")
+    .optional()
+    .isBoolean()
+    .withMessage("allowMultipleUsePerUser must be a boolean"),
 ];
 
 exports.updateCouponValidator = [
@@ -484,6 +488,10 @@ exports.updateCouponValidator = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Minimum purchase amount must be a non-negative number"),
+  body("allowMultipleUsePerUser")
+    .optional()
+    .isBoolean()
+    .withMessage("allowMultipleUsePerUser must be a boolean"),
 ];
 
 exports.couponIdValidator = [
@@ -557,4 +565,79 @@ exports.paginationValidator = [
     .optional()
     .isInt({ min: 1, max: 100 })
     .withMessage("Limit must be between 1 and 100"),
+];
+
+exports.contactFormValidator = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Name is required")
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Name must be between 2 and 100 characters"),
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email"),
+  body("subject")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Subject must be at most 200 characters"),
+  body("message")
+    .trim()
+    .notEmpty()
+    .withMessage("Message is required")
+    .isLength({ min: 10, max: 5000 })
+    .withMessage("Message must be between 10 and 5000 characters"),
+];
+
+exports.contactStatusValidator = [
+  body("status")
+    .notEmpty()
+    .withMessage("Status is required")
+    .isIn(["new", "read", "archived"])
+    .withMessage("Status must be new, read, or archived"),
+];
+
+exports.contactIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Contact message ID is required")
+    .isMongoId()
+    .withMessage("Invalid contact message ID"),
+];
+
+exports.createCategoryValidator = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required")
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Category name must be between 2 and 100 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+];
+
+exports.updateCategoryValidator = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Category name must be between 2 and 100 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+];
+
+exports.categoryIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Category ID is required")
+    .isMongoId()
+    .withMessage("Invalid category ID"),
 ];
