@@ -30,6 +30,16 @@ const orderSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
+  orderType: {
+    type: String,
+    enum: ["retail", "franchise"],
+    default: "retail",
+  },
+  franchise: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Franchise",
+    default: null,
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -135,6 +145,8 @@ orderItemSchema.virtual("itemTotal").get(function() {
 orderSchema.set("toJSON", { virtuals: true });
 
 orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderType: 1, createdAt: -1 });
+orderSchema.index({ franchise: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ "items.product": 1, status: 1 });

@@ -30,9 +30,7 @@ exports.loginValidator = [
   body("email")
     .trim()
     .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Please provide a valid email"),
+    .withMessage("Email or phone is required"),
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
@@ -640,4 +638,180 @@ exports.categoryIdValidator = [
     .withMessage("Category ID is required")
     .isMongoId()
     .withMessage("Invalid category ID"),
+];
+
+exports.franchiseEnquiryValidator = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Name is required")
+    .isLength({ max: 100 })
+    .withMessage("Name must be at most 100 characters"),
+  body("phone")
+    .trim()
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .isLength({ max: 20 })
+    .withMessage("Phone number must be at most 20 characters"),
+  body("email")
+    .optional({ values: "falsy" })
+    .trim()
+    .isEmail()
+    .withMessage("Please provide a valid email"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 5000 })
+    .withMessage("Description must be at most 5000 characters"),
+];
+
+exports.createFranchiseValidator = [
+  body("franchiseName")
+    .trim()
+    .notEmpty()
+    .withMessage("Franchise name is required")
+    .isLength({ max: 200 }),
+  body("storeName")
+    .trim()
+    .notEmpty()
+    .withMessage("Store name is required")
+    .isLength({ max: 200 }),
+  body("ownerName")
+    .trim()
+    .notEmpty()
+    .withMessage("Owner name is required")
+    .isLength({ max: 100 }),
+  body("ownerPhone")
+    .trim()
+    .notEmpty()
+    .withMessage("Owner phone is required")
+    .isLength({ max: 20 }),
+  body("ownerEmail")
+    .optional({ values: "falsy" })
+    .trim()
+    .isEmail()
+    .withMessage("Please provide a valid owner email"),
+  body("location")
+    .trim()
+    .notEmpty()
+    .withMessage("Location is required")
+    .isLength({ max: 100 }),
+  body("state")
+    .trim()
+    .notEmpty()
+    .withMessage("State is required")
+    .isLength({ max: 100 }),
+  body("district")
+    .trim()
+    .notEmpty()
+    .withMessage("District is required")
+    .isLength({ max: 100 }),
+  body("physicalAddress")
+    .trim()
+    .notEmpty()
+    .withMessage("Physical address is required")
+    .isLength({ max: 500 }),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 2000 }),
+  body("password")
+    .notEmpty()
+    .withMessage("Owner password is required")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+];
+
+exports.updateFranchiseValidator = [
+  body("franchiseName")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 200 }),
+  body("storeName")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 200 }),
+  body("ownerName")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("ownerPhone")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 20 }),
+  body("ownerEmail")
+    .optional({ values: "falsy" })
+    .trim()
+    .isEmail()
+    .withMessage("Please provide a valid owner email"),
+  body("location")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("state")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("district")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("physicalAddress")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 500 }),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 2000 }),
+  body("password")
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
+];
+
+exports.franchiseIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Franchise ID is required")
+    .isMongoId()
+    .withMessage("Invalid franchise ID"),
+];
+
+exports.franchiseEnquiryIdValidator = [
+  param("id")
+    .notEmpty()
+    .withMessage("Franchise enquiry ID is required")
+    .isMongoId()
+    .withMessage("Invalid franchise enquiry ID"),
+];
+
+exports.franchiseEnquiryStatusValidator = [
+  body("status")
+    .notEmpty()
+    .withMessage("Status is required")
+    .isIn(["new", "read", "archived"])
+    .withMessage("Status must be new, read, or archived"),
+];
+
+exports.createFranchiseOrderValidator = [
+  body("items")
+    .isArray({ min: 1 })
+    .withMessage("Items must be a non-empty array"),
+  body("items.*.productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+  body("items.*.quantity")
+    .isInt({ min: 1 })
+    .withMessage("Quantity must be at least 1"),
 ];

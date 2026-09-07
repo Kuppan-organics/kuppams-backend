@@ -70,7 +70,9 @@ exports.getAllOrders = async (req, res, next) => {
     const { status, page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const query = {};
+    const query = {
+      $or: [{ orderType: "retail" }, { orderType: { $exists: false } }],
+    };
     if (status) {
       query.status = status;
     }

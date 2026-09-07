@@ -587,4 +587,102 @@ router.delete(
   deleteCategory,
 );
 
+const { franchiseUpload } = require("../config/cloudinary");
+const {
+  getFranchises,
+  getFranchise,
+  createFranchise,
+  updateFranchise,
+  deleteFranchise,
+} = require("../controllers/franchiseController");
+const {
+  getFranchiseEnquiries,
+  updateFranchiseEnquiryStatus,
+  deleteFranchiseEnquiry,
+} = require("../controllers/franchiseEnquiryController");
+const { getAdminFranchiseOrders } = require("../controllers/franchiseOrderController");
+const {
+  createFranchiseValidator,
+  updateFranchiseValidator,
+  franchiseIdValidator,
+  franchiseEnquiryIdValidator,
+  franchiseEnquiryStatusValidator,
+} = require("../middleware/validator");
+
+router.get(
+  "/franchises",
+  protect,
+  authorize("admin"),
+  paginationValidator,
+  getFranchises,
+);
+
+router.get(
+  "/franchises/:id",
+  protect,
+  authorize("admin"),
+  franchiseIdValidator,
+  getFranchise,
+);
+
+router.post(
+  "/franchises",
+  protect,
+  authorize("admin"),
+  franchiseUpload.single("photo"),
+  createFranchiseValidator,
+  createFranchise,
+);
+
+router.put(
+  "/franchises/:id",
+  protect,
+  authorize("admin"),
+  franchiseIdValidator,
+  franchiseUpload.single("photo"),
+  updateFranchiseValidator,
+  updateFranchise,
+);
+
+router.delete(
+  "/franchises/:id",
+  protect,
+  authorize("admin"),
+  franchiseIdValidator,
+  deleteFranchise,
+);
+
+router.get(
+  "/franchise-enquiries",
+  protect,
+  authorize("admin"),
+  paginationValidator,
+  getFranchiseEnquiries,
+);
+
+router.put(
+  "/franchise-enquiries/:id/status",
+  protect,
+  authorize("admin"),
+  franchiseEnquiryIdValidator,
+  franchiseEnquiryStatusValidator,
+  updateFranchiseEnquiryStatus,
+);
+
+router.delete(
+  "/franchise-enquiries/:id",
+  protect,
+  authorize("admin"),
+  franchiseEnquiryIdValidator,
+  deleteFranchiseEnquiry,
+);
+
+router.get(
+  "/franchise-orders",
+  protect,
+  authorize("admin"),
+  paginationValidator,
+  getAdminFranchiseOrders,
+);
+
 module.exports = router;

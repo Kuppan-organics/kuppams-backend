@@ -80,9 +80,13 @@ exports.login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
+    const loginInput = email.trim();
 
-    // Check if user exists and get password
-    const user = await User.findOne({ email }).select("+password");
+    const userQuery = loginInput.includes("@")
+      ? { email: loginInput.toLowerCase() }
+      : { phone: loginInput };
+
+    const user = await User.findOne(userQuery).select("+password");
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -97,6 +101,20 @@ exports.login = async (req, res, next) => {
         success: false,
         message: "Invalid credentials",
       });
+    }
+
+    if (user.role === "franchise") {
+      const Franchise = require("../models/Franchise");
+      const franchise = await Franchise.findOne({
+        user: user._id,
+        isActive: true,
+      });
+      if (!franchise) {
+        return res.status(403).json({
+          success: false,
+          message: "Franchise account is inactive or not found",
+        });
+      }
     }
 
     const token = generateToken(user);

@@ -28,7 +28,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer upload instance
+// Multer upload instance for products
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -37,9 +37,26 @@ const upload = multer({
   },
 });
 
+const franchiseStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "kuppam-franchises",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
+    transformation: [{ width: 1000, height: 1000, crop: "limit" }],
+  },
+});
+
+const franchiseUpload = multer({
+  storage: franchiseStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 1.5 * 1024 * 1024, // 1.5MB limit
+  },
+});
+
 // Helper function to extract public_id from a Cloudinary URL
-const getPublicIdFromUrl = (imageUrl) => {
-  const folderIndex = imageUrl.indexOf("kuppam-products/");
+const getPublicIdFromUrl = (imageUrl, folder = "kuppam-products") => {
+  const folderIndex = imageUrl.indexOf(`${folder}/`);
   if (folderIndex === -1) return null;
 
   const pathWithExt = imageUrl.substring(folderIndex).split("?")[0];
@@ -47,9 +64,9 @@ const getPublicIdFromUrl = (imageUrl) => {
 };
 
 // Helper function to delete a single image from Cloudinary
-const deleteImage = async (imageUrl) => {
+const deleteImage = async (imageUrl, folder = "kuppam-products") => {
   try {
-    const publicId = getPublicIdFromUrl(imageUrl);
+    const publicId = getPublicIdFromUrl(imageUrl, folder);
     if (!publicId) {
       console.error("Could not extract public_id from URL:", imageUrl);
       return false;
@@ -63,6 +80,9 @@ const deleteImage = async (imageUrl) => {
   }
 };
 
+const deleteFranchiseImage = async (imageUrl) =>
+  deleteImage(imageUrl, "kuppam-franchises");
+
 // Helper function to delete multiple images from Cloudinary
 const deleteImages = async (imageUrls = []) => {
   if (!imageUrls.length) return;
@@ -73,6 +93,8 @@ const deleteImages = async (imageUrls = []) => {
 module.exports = {
   cloudinary,
   upload,
+  franchiseUpload,
   deleteImage,
   deleteImages,
+  deleteFranchiseImage,
 };

@@ -9,8 +9,8 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, "Please provide an email"],
     unique: true,
+    sparse: true,
     lowercase: true,
     trim: true,
     match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["user", "admin"],
+    enum: ["user", "admin", "franchise"],
     default: "user",
   },
   phone: {
